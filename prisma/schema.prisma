@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  email String @unique
+  username String @unique
+  password String
+  avatarUrl String?
+
+  isGuest Boolean
+
+  verified Boolean
+  verifyCode String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aura Int
+
+  characters Character[]
+
+  upgradeTree Json
+
+  playState Json
+}
+
+model Character {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+  userId String @db.ObjectId
+
+  name String
+  race String
+  class String
+
+  status CharacterStatus
+
+  ascension Int
+
+  statTracker Json
+
+  equipment Json
+  weapons Json
+  stats Json
+
+  gameState Json
+}
+
+enum CharacterStatus {
+  ACTIVE
+  DEAD
+  ASCENDED
+}
+
+type Item {
+  id String
+  amount Int
+  components Json
+}
