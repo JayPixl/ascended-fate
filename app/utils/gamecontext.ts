@@ -2,18 +2,25 @@ import { createContext } from "react"
 import { IGameContext } from "./engine/gamestate"
 import axios, { AxiosResponse } from "axios"
 import { CorrectedCharacter } from "./types"
-import { evolve } from "evolve-ts"
+import { evolve, unset } from "evolve-ts"
 
 export class GameContextHandler {
     private gameContext: IGameContext
-    private setGameContext: React.Dispatch<React.SetStateAction<IGameContext>>
+    private setGameContextDispatcher: React.Dispatch<
+        React.SetStateAction<IGameContext>
+    >
 
     constructor(
         gameContext: IGameContext,
         setGameContext: React.Dispatch<React.SetStateAction<IGameContext>>
     ) {
-        this.gameContext = gameContext
-        this.setGameContext = setGameContext
+        this.gameContext = { ...gameContext }
+        this.setGameContextDispatcher = setGameContext
+    }
+
+    private setGameContext(ctx: IGameContext) {
+        this.setGameContextDispatcher(ctx)
+        this.gameContext = ctx
     }
 
     public collectResource(nodeIndex: number) {
@@ -43,6 +50,19 @@ export class GameContextHandler {
         })
     }
 
+    public rest() {
+        this.doAction<RestAction>({ type: "rest" }, res => {
+            res.data?.character
+                ? this.setGameContext(
+                      evolve(
+                          { character: res.data.character },
+                          this.gameContext
+                      )
+                  )
+                : console.log(res.data?.error)
+        })
+    }
+
     public setScreen(screen: string) {
         this.setGameContext({
             ...this.gameContext,
@@ -51,6 +71,30 @@ export class GameContextHandler {
                 activePage: screen
             }
         })
+    }
+
+    public openSkillTreeNode(id: string) {
+        this.setGameContext(
+            evolve(
+                {
+                    screenContext: {
+                        modal: {
+                            type: "upgrade",
+                            node: {
+                                id
+                            }
+                        }
+                    }
+                },
+                this.gameContext
+            )
+        )
+    }
+
+    public closeModal() {
+        this.setGameContext(
+            evolve({ screenContext: { modal: unset } }, this.gameContext)
+        )
     }
 
     private async doAction<T extends ActionType>(
@@ -70,15 +114,6 @@ export const GameContext = createContext<{
     context: IGameContext | null
     handler: GameContextHandler | null
 }>({ context: null, handler: null })
-
-export const doAction: (
-    values: Record<string, string>,
-    callback?: (res: AxiosResponse<any, any>) => any
-) => Promise<void> = async (values, callback) => {
-    const searchParams = new URLSearchParams(values)
-    const res = await axios.get("/play/campaign/action?" + searchParams)
-    callback && callback(res)
-}
 
 export type ActionType = ResourceAction | TravelAction | RestAction
 

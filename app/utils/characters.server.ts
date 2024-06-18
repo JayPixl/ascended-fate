@@ -3,7 +3,11 @@ import { RACES } from "./engine/lib/races"
 import { ClassName, PlayerUpgradeTree, RaceName } from "./engine/skill-tree"
 import { prisma } from "./prisma.server"
 import { generateName } from "./name-generator"
-import { createGameState } from "./engine/gamestate"
+import {
+    createGameState,
+    getDefaultEquipment,
+    getDefaultWeapons
+} from "./engine/gamestate"
 
 export const createCharacter: (
     user: User,
@@ -21,14 +25,25 @@ export const createCharacter: (
             name: generateName(),
             status: "ACTIVE",
             statTracker: {},
-            equipment: {},
-            weapons: {},
+            equipment: getDefaultEquipment(
+                JSON.parse(
+                    user.upgradeTree?.valueOf() as string
+                ) as unknown as PlayerUpgradeTree,
+                race,
+                _class
+            ) as unknown as Prisma.InputJsonObject,
+            weapons: getDefaultWeapons(
+                JSON.parse(
+                    user.upgradeTree?.valueOf() as string
+                ) as unknown as PlayerUpgradeTree,
+                race,
+                _class
+            ) as unknown as Prisma.InputJsonObject,
             stats: {},
             gameState: createGameState(
                 JSON.parse(
                     user.upgradeTree?.valueOf() as string
                 ) as unknown as PlayerUpgradeTree,
-                race,
                 _class
             ) as unknown as Prisma.InputJsonObject,
             user: {
@@ -40,33 +55,6 @@ export const createCharacter: (
     })
 
     if (!character) return { error: "Error while creating character." }
-
-    return { character }
-}
-
-export const newTile: (
-    character: Character,
-    user: User
-) => Promise<{
-    error?: string
-    character?: Character
-}> = async (char, user) => {
-    const character = await prisma.character.update({
-        where: {
-            id: char.id
-        },
-        data: {
-            gameState: createGameState(
-                JSON.parse(
-                    user.upgradeTree?.valueOf() as string
-                ) as unknown as PlayerUpgradeTree,
-                char.race as RaceName,
-                char.class as ClassName
-            ) as unknown as Prisma.InputJsonObject
-        }
-    })
-
-    if (!character) return { error: "Error while performing action." }
 
     return { character }
 }

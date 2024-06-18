@@ -3,7 +3,8 @@ export const SKILLS = {
         name: "Heavy Strike",
         levels: {
             "0": {
-                entry: true
+                entry: true,
+                beginUnlocked: true
             }
         }
     },
@@ -11,7 +12,8 @@ export const SKILLS = {
         name: "Focused Blast",
         levels: {
             "0": {
-                entry: true
+                entry: true,
+                beginUnlocked: true
             }
         }
     },
@@ -19,8 +21,11 @@ export const SKILLS = {
         name: "Crushing Blow",
         levels: {
             "0": {
-                entry: true
+                entry: true,
+                beginUnlocked: true
             }
         }
     }
 } as const
+
+export type SkillName = keyof typeof SKILLS

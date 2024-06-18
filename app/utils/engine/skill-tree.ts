@@ -6,14 +6,14 @@ import { WEAPONS } from "./lib/weapons"
 
 export const defaultUpgradeTree: PlayerUpgradeTree = {
     // RACES
-    lapine: { HP: 5, RP: 6, unlocked: true },
-    tytovi: { HP: 5, RP: 4, unlocked: true },
-    swineig: { HP: 6, RP: 4, unlocked: true },
+    // lapine: { HP: 5, RP: 6, unlocked: true },
+    // tytovi: { HP: 5, RP: 4, unlocked: true },
+    // swineig: { HP: 6, RP: 4, unlocked: true },
 
     // CLASSES
-    wanderer: { unlocked: true },
-    brute: { unlocked: true },
-    scribe: { unlocked: true },
+    wanderer: { unlocked: true, HP: 5, RP: 6, xp: 0 },
+    scribe: { unlocked: true, HP: 5, RP: 4, xp: 0 },
+    brute: { unlocked: true, HP: 6, RP: 4, xp: 0 },
 
     // EQUIPMENT
     hardened_leather_armor: {
@@ -23,7 +23,8 @@ export const defaultUpgradeTree: PlayerUpgradeTree = {
         "0": { unlocked: true }
     },
     wayfarers_tunic: {
-        "0": { unlocked: true }
+        "0": { unlocked: true },
+        "1": { unlocked: false }
     },
 
     // WEAPONS
@@ -49,24 +50,23 @@ export const defaultUpgradeTree: PlayerUpgradeTree = {
     }
 }
 
-export interface PlayerUpgradeTree
-    extends RaceUpgradeTree,
-        ClassesUpgradeTree,
+export interface PlayerUpgradeTree //RaceUpgradeTree,
+    extends ClassesUpgradeTree,
         EquipmentUpgradeTree,
         WeaponsUpgradeTree,
         SkillsUpgradeTree {}
 
 export type RaceName = keyof typeof RACES
 
-type RaceUpgradeTree = {
-    [K in RaceName]: RaceUpgradeNode
-}
+// type RaceUpgradeTree = {
+//     [K in RaceName]: RaceUpgradeNode
+// }
 
-interface RaceUpgradeNode {
-    HP: number
-    RP: number
-    unlocked: boolean
-}
+// interface RaceUpgradeNode {
+//     HP: number
+//     RP: number
+//     unlocked: boolean
+// }
 
 export type ClassName = keyof typeof CLASSES
 
@@ -76,6 +76,9 @@ type ClassesUpgradeTree = {
 
 interface ClassesUpgradeNode {
     unlocked: boolean
+    HP: number
+    RP: number
+    xp: number
 }
 
 type EquipmentName = keyof typeof EQUIPMENT
@@ -84,7 +87,7 @@ type EquipmentUpgradeTree = {
     [K in EquipmentName]: EquipmentUpgradeNode<K>
 }
 
-type EquipmentUpgradeNode<K extends EquipmentName> = Record<
+export type EquipmentUpgradeNode<K extends EquipmentName> = Record<
     keyof (typeof EQUIPMENT)[K]["refining"],
     { unlocked: boolean }
 >
@@ -95,7 +98,7 @@ type WeaponsUpgradeTree = {
     [K in WeaponName]: WeaponsUpgradeNode<K>
 }
 
-type WeaponsUpgradeNode<K extends WeaponName> = Record<
+export type WeaponsUpgradeNode<K extends WeaponName> = Record<
     keyof (typeof WEAPONS)[K]["refining"],
     { unlocked: boolean }
 >

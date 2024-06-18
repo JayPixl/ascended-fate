@@ -3,12 +3,10 @@ import { GameContext } from "~/utils/gamecontext"
 
 export default function GameScreen({
     children,
-    id,
-    permanent
+    id
 }: {
     children: React.ReactNode
     id: string
-    permanent: boolean
 }) {
     const { context, handler } = useContext(GameContext)
     return (

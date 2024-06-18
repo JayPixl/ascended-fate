@@ -2,9 +2,23 @@ import { Character, Prisma, User } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import type { LoaderFunction, MetaFunction } from "@remix-run/node"
 import { Link, json, redirect, useLoaderData } from "@remix-run/react"
-import { newTile } from "~/utils/characters.server"
-import { GameState } from "~/utils/engine/gamestate"
+import { evolve } from "evolve-ts"
+import { generate } from "randomstring"
+import {
+    CharEquipmentMap,
+    CharWeaponMap,
+    GameState,
+    createGameState,
+    generateTile,
+    getDefaultEquipment,
+    getDefaultWeapons
+} from "~/utils/engine/gamestate"
 import { ITEMS, ItemStack } from "~/utils/engine/lib/generation"
+import {
+    ClassName,
+    PlayerUpgradeTree,
+    RaceName
+} from "~/utils/engine/skill-tree"
 import { getRandomInt } from "~/utils/name-generator"
 import { prisma } from "~/utils/prisma.server"
 import { CorrectedCharacter, UserWithCharacters } from "~/utils/types"
@@ -35,9 +49,36 @@ export const loader: LoaderFunction = async ({ request }) => {
     console.log("RECEIVED ACTION " + action)
 
     switch (action) {
-        case "new-tile": {
-            const { error, character } = await newTile(activeCharacter, user)
-            return json({ error, character })
+        case "reset-character": {
+            const character = await prisma.character.update({
+                where: {
+                    id: char.id
+                },
+                data: {
+                    ascension: 1,
+                    equipment: getDefaultEquipment(
+                        JSON.parse(
+                            user.upgradeTree?.valueOf() as string
+                        ) as unknown as PlayerUpgradeTree,
+                        char.race as RaceName,
+                        char.class as ClassName
+                    ) as unknown as Prisma.InputJsonObject,
+                    weapons: getDefaultWeapons(
+                        JSON.parse(
+                            user.upgradeTree?.valueOf() as string
+                        ) as unknown as PlayerUpgradeTree,
+                        char.race as RaceName,
+                        char.class as ClassName
+                    ) as unknown as Prisma.InputJsonObject,
+                    gameState: createGameState(
+                        JSON.parse(
+                            user.upgradeTree as string
+                        ) as unknown as PlayerUpgradeTree,
+                        char.class as ClassName
+                    ) as unknown as Prisma.InputJsonObject
+                }
+            })
+            return json({ character })
         }
         case "resource": {
             const nodeIndex = Number(searchParams.get("index") as string)
@@ -94,6 +135,75 @@ export const loader: LoaderFunction = async ({ request }) => {
 
             return json({ character })
         }
+        case "travel": {
+            if (char.gameState.stats.AP < 1) {
+                return json({ error: "Not enough AP to travel!" })
+            }
+
+            const character = await prisma.character.update({
+                where: {
+                    id: char.id
+                },
+                data: {
+                    gameState: evolve(
+                        {
+                            currentTile: generateTile(char.ascension),
+                            stats: { AP: char.gameState.stats.AP - 1 }
+                        },
+                        char.gameState
+                    ) as unknown as Prisma.InputJsonValue
+                }
+            })
+            if (!character)
+                return json({ error: "Error while performing action." })
+
+            return json({ character })
+        }
+        case "rest": {
+            if (char.gameState.stats.AP < 1) {
+                return json({ error: "Not enough AP to rest!" })
+            }
+
+            if (
+                char.gameState.stats.HP.current ===
+                    char.gameState.stats.HP.max &&
+                char.gameState.stats.RP.current === char.gameState.stats.RP.max
+            ) {
+                return json({ error: "HP and RP are already full!" })
+            }
+
+            const character = await prisma.character.update({
+                where: {
+                    id: char.id
+                },
+                data: {
+                    gameState: evolve(
+                        {
+                            stats: {
+                                AP: char.gameState.stats.AP - 1,
+                                HP: {
+                                    current: Math.min(
+                                        char.gameState.stats.HP.current + 1,
+                                        char.gameState.stats.HP.max
+                                    )
+                                },
+                                RP: {
+                                    current: Math.min(
+                                        char.gameState.stats.RP.current + 1,
+                                        char.gameState.stats.RP.max
+                                    )
+                                }
+                            }
+                        },
+                        char.gameState
+                    ) as unknown as Prisma.InputJsonValue
+                }
+            })
+            if (!character)
+                return json({ error: "Error while performing action." })
+
+            return json({ character })
+        }
         default: {
             return json({ error: "Invalid action type!" })
         }
@@ -108,7 +218,7 @@ export const addInventoryItem: (
 ) => { result: ActionResult; inventory: ItemStack[] } = (inventory, added) => {
     let stackToAdd = { ...added }
     let editedInventory = [...inventory]
-    editedInventory.map(stack => {
+    editedInventory = editedInventory.map(stack => {
         if (
             stack.id === added.id &&
             JSON.stringify(stack.components) ===
@@ -156,7 +266,11 @@ export const fixCharacter: (
         ...character,
         gameState: JSON.parse(
             character.gameState?.valueOf() as string
-        ) as GameState
+        ) as GameState,
+        equipment: JSON.parse(
+            character.equipment as string
+        ) as CharEquipmentMap,
+        weapons: JSON.parse(character.weapons as string) as CharWeaponMap
     } as CorrectedCharacter
 }
 
