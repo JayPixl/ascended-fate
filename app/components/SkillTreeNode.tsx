@@ -153,6 +153,7 @@ export default function SkillTreeNode({
                             node={newNode}
                             parentId={node.id}
                             nodeState={nodeState}
+                            key={newNode.id}
                         />
                     )
                 })}

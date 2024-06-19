@@ -276,26 +276,26 @@ export default function Campaign() {
                                 {
                                     id: "core",
                                     name: "Core",
-                                    children: ["maxHp", "maxRp"],
+                                    children: ["maxHP", "maxRP"],
                                     entry: false,
                                     open: false,
                                     type: "collapsible"
                                 },
                                 {
-                                    id: "maxHp",
+                                    id: "maxHP",
                                     name: "Max HP",
                                     children: [],
                                     entry: false,
                                     open: false,
-                                    type: "collapsible"
+                                    type: "static"
                                 },
                                 {
-                                    id: "maxRp",
+                                    id: "maxRP",
                                     name: "Max RP",
                                     children: [],
                                     entry: false,
                                     open: false,
-                                    type: "collapsible"
+                                    type: "static"
                                 },
                                 ...getEquipmentNodes(activeCharacter.equipment),
                                 ...getWeaponNodes(activeCharacter.weapons)

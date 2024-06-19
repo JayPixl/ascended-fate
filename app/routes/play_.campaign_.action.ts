@@ -204,6 +204,9 @@ export const loader: LoaderFunction = async ({ request }) => {
 
             return json({ character })
         }
+        case "upgrade": {
+            break
+        }
         default: {
             return json({ error: "Invalid action type!" })
         }
@@ -251,6 +254,74 @@ export const addInventoryItem: (
     return {
         result: ActionResult.SUCCESS,
         inventory: editedInventory
+    }
+}
+
+export const hasItemStacks: (
+    itemStacks: ItemStack[],
+    inventory: ItemStack[]
+) => { result: ActionResult } = (itemStacks, inventory) => {
+    const copiedInventory: ItemStack[] = [...inventory]
+
+    if (
+        removeItemStacks(itemStacks, copiedInventory).result ===
+        ActionResult.SUCCESS
+    ) {
+        return {
+            result: ActionResult.SUCCESS
+        }
+    }
+    return {
+        result: ActionResult.FAIL
+    }
+}
+
+export const removeItemStacks: (
+    itemStacks: ItemStack[],
+    inventory: ItemStack[]
+) => { result: ActionResult; inventory: ItemStack[] } = (
+    itemStacks,
+    inventory
+) => {
+    const copiedInventory: ItemStack[] = [...inventory]
+    for (var i: number = 0; i < itemStacks.length; i++) {
+        const stackToRemove: ItemStack = { ...itemStacks[i] }
+        const matchingStacks = copiedInventory
+            .filter(
+                i =>
+                    i.id === stackToRemove.id &&
+                    JSON.stringify(i.components) ===
+                        JSON.stringify(stackToRemove.components)
+            )
+            .sort((a, b) => a.amount - b.amount)
+        while (true) {
+            if (!matchingStacks.length) {
+                return {
+                    result: ActionResult.FAIL,
+                    inventory
+                }
+            }
+            const matchingStack = matchingStacks[0]
+            const amountToRemove = Math.min(
+                matchingStacks[0].amount,
+                stackToRemove.amount
+            )
+
+            stackToRemove.amount -= amountToRemove
+            matchingStack.amount -= amountToRemove
+
+            if (matchingStack.amount === 0) {
+                const index = copiedInventory.indexOf(matchingStack)
+                if (index > -1) {
+                    copiedInventory.splice(index, 1)
+                }
+                matchingStacks.shift()
+            }
+        }
+    }
+    return {
+        result: ActionResult.SUCCESS,
+        inventory: copiedInventory
     }
 }
 

@@ -29,6 +29,16 @@ export const ITEMS = {
         maxStack: 8,
         usable: false,
         name: "Wood"
+    },
+    life_shard: {
+        maxStack: 8,
+        usable: false,
+        name: "Life Shard"
+    },
+    stamina_shard: {
+        maxStack: 8,
+        usable: false,
+        name: "Stamina Shard"
     }
 } as const
 

@@ -19,6 +19,7 @@ import { CorrectedCharacter } from "../types"
 import { EQUIPMENT } from "./lib/equipment"
 import { WEAPONS } from "./lib/weapons"
 import { SKILLS } from "./lib/skills"
+import { hasItemStacks } from "~/routes/play_.campaign_.action"
 
 export interface GameState {
     inventory: ItemStack[]
@@ -36,10 +37,22 @@ export interface IScreenContext {
     activePage: string
     modal?: {
         type: "upgrade"
-        node: {
-            id: string
-        }
+        node: IUpgradeNode
     }
+}
+
+export interface IUpgradeNode {
+    id: string
+    title: string
+    unlocked: boolean
+    description: string
+    cost: IUpgradeCost
+    unlockable: boolean
+}
+
+export interface IUpgradeCost {
+    xp?: number
+    resources?: ItemStack[]
 }
 
 export interface CharacterStats {
@@ -245,5 +258,70 @@ export const generateTile: (ascension: number) => GameTile = ascension => {
         biome,
         tileNodes,
         status: "screen"
+    }
+}
+
+export const doCharUpgradeLookup: (
+    id: string,
+    char: CorrectedCharacter
+) => IUpgradeNode = (id, char) => {
+    if (id === "maxHP") {
+        const myCharHP = char.gameState.stats.HP
+        const resources: ItemStack[] = [
+            { id: "life_shard", amount: myCharHP.max + 1, components: {} }
+        ]
+        return {
+            id,
+            title: "Max HP",
+            description:
+                myCharHP.max === myCharHP.upgradableMax
+                    ? `Max HP cannot be upgraded further!`
+                    : `Max HP ${myCharHP.max} -> ${myCharHP.max + 1}`,
+            cost: {
+                resources
+            },
+            unlocked: myCharHP.max === myCharHP.upgradableMax,
+            unlockable:
+                myCharHP.max !== myCharHP.upgradableMax &&
+                hasItemStacks(resources, char.gameState.inventory)
+        } as IUpgradeNode
+    } else if (id === "maxRP") {
+        const myCharRP = char.gameState.stats.RP
+        const resources: ItemStack[] = [
+            { id: "stamina_shard", amount: myCharRP.max + 1, components: {} }
+        ]
+        return {
+            id,
+            title: "Max RP",
+            description:
+                myCharRP.max === myCharRP.upgradableMax
+                    ? `Max RP cannot be upgraded further!`
+                    : `Max RP ${myCharRP.max} -> ${myCharRP.max + 1}`,
+            cost: {
+                resources
+            },
+            unlocked: myCharRP.max === myCharRP.upgradableMax,
+            unlockable:
+                myCharRP.max !== myCharRP.upgradableMax &&
+                hasItemStacks(resources, char.gameState.inventory)
+        } as IUpgradeNode
+    } else {
+        if (Object.keys(char.equipment).filter(e => e.includes(id)).length) {
+            console.log("FOUND EQUIPMENT!")
+        } else if (
+            Object.keys(char.weapons).filter(w => w.includes(id)).length
+        ) {
+            console.log("FOUND WEAPON!")
+        }
+        return {
+            id,
+            cost: {
+                resources: []
+            },
+            description: "",
+            title: "",
+            unlockable: false,
+            unlocked: false
+        } as IUpgradeNode
     }
 }

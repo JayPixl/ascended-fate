@@ -1,5 +1,5 @@
 import { createContext } from "react"
-import { IGameContext } from "./engine/gamestate"
+import { IGameContext, doCharUpgradeLookup } from "./engine/gamestate"
 import axios, { AxiosResponse } from "axios"
 import { CorrectedCharacter } from "./types"
 import { evolve, unset } from "evolve-ts"
@@ -80,9 +80,10 @@ export class GameContextHandler {
                     screenContext: {
                         modal: {
                             type: "upgrade",
-                            node: {
-                                id
-                            }
+                            node: doCharUpgradeLookup(
+                                id,
+                                this.gameContext.character
+                            )
                         }
                     }
                 },
@@ -95,6 +96,17 @@ export class GameContextHandler {
         this.setGameContext(
             evolve({ screenContext: { modal: unset } }, this.gameContext)
         )
+    }
+
+    public upgradeNode(id: string) {
+        this.doAction<UpgradeNodeAction>({ type: "upgrade", id }, res => {
+            res.data?.character
+                ? this.setGameContext({
+                      ...this.gameContext,
+                      character: res.data.character
+                  })
+                : console.log(res.data?.error)
+        })
     }
 
     private async doAction<T extends ActionType>(
@@ -115,7 +127,11 @@ export const GameContext = createContext<{
     handler: GameContextHandler | null
 }>({ context: null, handler: null })
 
-export type ActionType = ResourceAction | TravelAction | RestAction
+export type ActionType =
+    | ResourceAction
+    | TravelAction
+    | RestAction
+    | UpgradeNodeAction
 
 export interface AbstractAction<T extends string> {
     type: T
@@ -141,6 +157,16 @@ export interface TravelAction extends AbstractAction<"travel"> {
 }
 
 export interface RestAction extends AbstractAction<"rest"> {
+    response: {
+        error?: string
+        character?: CorrectedCharacter
+    }
+}
+
+export interface UpgradeNodeAction extends AbstractAction<"upgrade"> {
+    params: {
+        id: string
+    }
     response: {
         error?: string
         character?: CorrectedCharacter
