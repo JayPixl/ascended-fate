@@ -4,7 +4,23 @@ export const SKILLS = {
         levels: {
             "0": {
                 entry: true,
-                beginUnlocked: true
+                beginUnlocked: true,
+                description: "3 DMG",
+                cost: {
+                    resources: [],
+                    xp: 0
+                },
+                children: ["quarterstaff:heavy_strike#1"]
+            },
+            "1": {
+                entry: false,
+                beginUnlocked: false,
+                description: "4 DMG",
+                cost: {
+                    resources: [],
+                    xp: 8
+                },
+                children: []
             }
         }
     },
@@ -13,7 +29,13 @@ export const SKILLS = {
         levels: {
             "0": {
                 entry: true,
-                beginUnlocked: true
+                beginUnlocked: true,
+                description: "3 DMG",
+                cost: {
+                    resources: [],
+                    xp: 0
+                },
+                children: []
             }
         }
     },
@@ -22,7 +44,13 @@ export const SKILLS = {
         levels: {
             "0": {
                 entry: true,
-                beginUnlocked: true
+                beginUnlocked: true,
+                description: "3 DMG",
+                cost: {
+                    resources: [],
+                    xp: 0
+                },
+                children: []
             }
         }
     }

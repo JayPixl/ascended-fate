@@ -1,5 +1,5 @@
 import { ISkillTreeNode } from "~/components/SkillTree"
-import { CharWeaponMap } from "../gamestate"
+import { CharWeaponMap, IUpgradeCost } from "../gamestate"
 import { IRefining, IRefiningEntry } from "./equipment"
 import { SKILLS, SkillName } from "./skills"
 
@@ -10,7 +10,22 @@ export const WEAPONS = {
             "0": {
                 name: "Basic",
                 beginUnlocked: true,
-                children: []
+                children: ["1"],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [],
+                    xp: 0
+                }
+            },
+            "1": {
+                name: "Refined",
+                beginUnlocked: false,
+                children: [],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [{ id: "wood", amount: 8, components: {} }],
+                    xp: 0
+                }
             }
         },
         skills: ["heavy_strike"]
@@ -21,7 +36,12 @@ export const WEAPONS = {
             "0": {
                 name: "Basic",
                 beginUnlocked: true,
-                children: []
+                children: [],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [],
+                    xp: 0
+                }
             }
         },
         skills: ["focused_blast"]
@@ -32,7 +52,12 @@ export const WEAPONS = {
             "0": {
                 name: "Basic",
                 beginUnlocked: true,
-                children: []
+                children: [],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [],
+                    xp: 0
+                }
             }
         },
         skills: ["crushing_blow"]
@@ -62,6 +87,8 @@ export interface ISkillEntry {
     children: string[]
     unlocked: boolean
     unlockProgress: number
+    description: string
+    cost: IUpgradeCost
 }
 
 export const getWeaponById: (
@@ -77,7 +104,9 @@ export const getWeaponById: (
             id: refId,
             children: refiningEntry.children as unknown as string[],
             name: refiningEntry.name as string,
-            unlocked: refEntry.unlocked
+            unlocked: refEntry.unlocked,
+            cost: refiningEntry.cost as unknown as IUpgradeCost,
+            description: refiningEntry.description
         })
         //console.log(id + "|" + refId + "|" + JSON.stringify(refEntry))
         return acc
@@ -101,18 +130,21 @@ export const getWeaponById: (
         const skillEntry = SKILLS[skillId as SkillName]
 
         Object.entries(sklEntry).map(([lvId, lvEntry]) => {
-            const children = lvEntry?.[
-                (Number(lvId) + 1).toString() as keyof typeof lvEntry
-            ]
-                ? [skillId + "#" + (Number(lvId) + 1).toString()]
-                : []
+            const children =
+                skillEntry.levels[lvId as keyof typeof skillEntry.levels]
+                    .children
             const addedSkill = {
                 name: skillEntry.name + " " + (Number(lvId) + 1),
                 id: skillId + "#" + lvId,
-                children,
+                children: children as unknown as string[],
                 unlocked: lvEntry.unlocked,
-                unlockProgress: lvEntry.unlockProgress
-            }
+                unlockProgress: lvEntry.unlockProgress,
+                cost: skillEntry.levels[lvId as keyof typeof skillEntry.levels]
+                    .cost as unknown as IUpgradeCost,
+                description:
+                    skillEntry.levels[lvId as keyof typeof skillEntry.levels]
+                        .description
+            } as ISkillEntry
             if (
                 skillEntry.levels[lvId as keyof typeof skillEntry.levels].entry
             ) {
@@ -179,12 +211,13 @@ export const getWeaponNodes: (
                 id: weaponId + "_refining_" + l.id,
                 name: l.name,
                 entry: false,
-                children: l.children,
+                children: l.children.map(c => weaponId + "_refining_" + c),
                 open: true,
                 type: "static"
             })
         })
         weapon.skills.levels.map(l => {
+            //console.log(l)
             nodes.push({
                 id: l.id,
                 name: l.name,

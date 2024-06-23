@@ -106,6 +106,7 @@ export class GameContextHandler {
                       character: res.data.character
                   })
                 : console.log(res.data?.error)
+            this.openSkillTreeNode(id)
         })
     }
 

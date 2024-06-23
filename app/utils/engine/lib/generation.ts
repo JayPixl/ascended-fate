@@ -39,6 +39,11 @@ export const ITEMS = {
         maxStack: 8,
         usable: false,
         name: "Stamina Shard"
+    },
+    string: {
+        name: "String",
+        maxStack: 8,
+        usable: false
     }
 } as const
 

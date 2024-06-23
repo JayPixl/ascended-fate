@@ -1,5 +1,5 @@
 import { Children } from "react"
-import { CharEquipmentMap, CharWeaponMap } from "../gamestate"
+import { CharEquipmentMap, CharWeaponMap, IUpgradeCost } from "../gamestate"
 import { PlayerUpgradeTree } from "../skill-tree"
 import { ISkillTreeNode } from "~/components/SkillTree"
 
@@ -10,12 +10,22 @@ export const EQUIPMENT = {
             "0": {
                 name: "Basic",
                 beginUnlocked: true,
-                children: ["1"]
+                children: ["1"],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [],
+                    xp: 0
+                }
             },
             "1": {
                 name: "Refined",
                 beginUnlocked: false,
-                children: []
+                children: [],
+                description: "+2 EDEF, +1 Luck.",
+                cost: {
+                    resources: [{ id: "string", amount: 5, components: {} }],
+                    xp: 0
+                }
             }
         }
     },
@@ -25,7 +35,12 @@ export const EQUIPMENT = {
             "0": {
                 name: "Basic",
                 beginUnlocked: true,
-                children: []
+                children: [],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [],
+                    xp: 0
+                }
             }
         }
     },
@@ -35,7 +50,12 @@ export const EQUIPMENT = {
             "0": {
                 name: "Basic",
                 beginUnlocked: true,
-                children: []
+                children: [],
+                description: "+1 EDEF",
+                cost: {
+                    resources: [],
+                    xp: 0
+                }
             }
         }
     }
@@ -61,6 +81,8 @@ export interface IRefining<T extends "equipment" | "weapon"> {
 export interface IRefiningEntry<T extends "equipment" | "weapon"> {
     id: string
     name: string
+    description: string
+    cost: IUpgradeCost
     children: string[]
     unlocked: boolean
 }
@@ -82,7 +104,9 @@ export const getEquipmentById: (
             id: refId,
             children: refiningEntry.children as unknown as string[],
             name: refiningEntry.name as string,
-            unlocked: refEntry.unlocked
+            unlocked: refEntry.unlocked,
+            cost: refiningEntry.cost as unknown as IUpgradeCost,
+            description: refiningEntry.description
         })
         //console.log(id + "|" + refId + "|" + JSON.stringify(refEntry))
         return acc
@@ -131,7 +155,7 @@ export const getEquipmentNodes: (
                 id: equipId + "_refining_" + l.id,
                 name: l.name,
                 entry: false,
-                children: l.children,
+                children: l.children.map(c => equipId + "_refining_" + c),
                 open: true,
                 type: "static"
             })

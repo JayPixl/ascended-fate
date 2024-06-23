@@ -25,7 +25,7 @@ export default function GameModal({}: {}) {
                             ) : (
                                 <>
                                     {context.screenContext.modal.node.cost
-                                        .resources && (
+                                        .resources ? (
                                         <div className="flex flex-row w-full">
                                             {context.screenContext.modal.node.cost.resources.map(
                                                 r => (
@@ -35,9 +35,11 @@ export default function GameModal({}: {}) {
                                                 )
                                             )}
                                         </div>
+                                    ) : (
+                                        <></>
                                     )}
                                     {context.screenContext.modal.node.cost
-                                        .xp && (
+                                        .xp ? (
                                         <div className="w-full">
                                             ? /{" "}
                                             {
@@ -46,12 +48,19 @@ export default function GameModal({}: {}) {
                                             }{" "}
                                             XP
                                         </div>
+                                    ) : (
+                                        <></>
                                     )}
                                     {context.screenContext.modal.node
                                         .unlockable ? (
                                         <div
                                             className="flex flex-row w-full"
-                                            //onClick={() => handler.upgradeNode(context.screenContext.modal?.node.id) }
+                                            onClick={() =>
+                                                handler.upgradeNode(
+                                                    context.screenContext.modal
+                                                        ?.node.id || ""
+                                                )
+                                            }
                                         >
                                             UNLOCK
                                         </div>

@@ -16,10 +16,10 @@ import {
 } from "./skill-tree"
 import { User } from "@prisma/client"
 import { CorrectedCharacter } from "../types"
-import { EQUIPMENT } from "./lib/equipment"
-import { WEAPONS } from "./lib/weapons"
+import { EQUIPMENT, getEquipmentById } from "./lib/equipment"
+import { WEAPONS, getWeaponById } from "./lib/weapons"
 import { SKILLS } from "./lib/skills"
-import { hasItemStacks } from "~/routes/play_.campaign_.action"
+import { ActionResult, hasItemStacks } from "~/routes/play_.campaign_.action"
 
 export interface GameState {
     inventory: ItemStack[]
@@ -261,15 +261,41 @@ export const generateTile: (ascension: number) => GameTile = ascension => {
     }
 }
 
+export const getMaxRPUpgradeCost: (
+    char: CorrectedCharacter
+) => IUpgradeCost = char => {
+    return {
+        resources: [
+            {
+                id: "stamina_shard",
+                amount: char.gameState.stats.RP.max + 1,
+                components: {}
+            }
+        ]
+    }
+}
+
+export const getMaxHPUpgradeCost: (
+    char: CorrectedCharacter
+) => IUpgradeCost = char => {
+    return {
+        resources: [
+            {
+                id: "life_shard",
+                amount: char.gameState.stats.HP.max + 1,
+                components: {}
+            }
+        ]
+    }
+}
+
 export const doCharUpgradeLookup: (
     id: string,
     char: CorrectedCharacter
 ) => IUpgradeNode = (id, char) => {
     if (id === "maxHP") {
         const myCharHP = char.gameState.stats.HP
-        const resources: ItemStack[] = [
-            { id: "life_shard", amount: myCharHP.max + 1, components: {} }
-        ]
+        const cost = getMaxHPUpgradeCost(char)
         return {
             id,
             title: "Max HP",
@@ -277,19 +303,16 @@ export const doCharUpgradeLookup: (
                 myCharHP.max === myCharHP.upgradableMax
                     ? `Max HP cannot be upgraded further!`
                     : `Max HP ${myCharHP.max} -> ${myCharHP.max + 1}`,
-            cost: {
-                resources
-            },
+            cost,
             unlocked: myCharHP.max === myCharHP.upgradableMax,
             unlockable:
                 myCharHP.max !== myCharHP.upgradableMax &&
-                hasItemStacks(resources, char.gameState.inventory)
+                hasItemStacks(cost.resources || [], char.gameState.inventory)
+                    .result === ActionResult.SUCCESS
         } as IUpgradeNode
     } else if (id === "maxRP") {
         const myCharRP = char.gameState.stats.RP
-        const resources: ItemStack[] = [
-            { id: "stamina_shard", amount: myCharRP.max + 1, components: {} }
-        ]
+        const cost = getMaxRPUpgradeCost(char)
         return {
             id,
             title: "Max RP",
@@ -297,21 +320,85 @@ export const doCharUpgradeLookup: (
                 myCharRP.max === myCharRP.upgradableMax
                     ? `Max RP cannot be upgraded further!`
                     : `Max RP ${myCharRP.max} -> ${myCharRP.max + 1}`,
-            cost: {
-                resources
-            },
+            cost,
             unlocked: myCharRP.max === myCharRP.upgradableMax,
             unlockable:
                 myCharRP.max !== myCharRP.upgradableMax &&
-                hasItemStacks(resources, char.gameState.inventory)
+                hasItemStacks(cost.resources || [], char.gameState.inventory)
+                    .result === ActionResult.SUCCESS
         } as IUpgradeNode
     } else {
-        if (Object.keys(char.equipment).filter(e => e.includes(id)).length) {
+        if (Object.keys(char.equipment).filter(e => id.includes(e)).length) {
             console.log("FOUND EQUIPMENT!")
-        } else if (
-            Object.keys(char.weapons).filter(w => w.includes(id)).length
-        ) {
+            const equipId = id.split("_refining_")[0]
+            const refiningLv = id.split("_refining_")[1]
+            const equipEntry = getEquipmentById(equipId, char.equipment)
+            const equipEntryLevel = equipEntry.refining.levels.filter(
+                l => l.id === refiningLv
+            )[0]
+            return {
+                id,
+                title: equipEntryLevel.name + " " + equipEntry.name,
+                unlocked: equipEntryLevel.unlocked,
+                cost: equipEntryLevel.cost,
+                description: equipEntryLevel.description,
+                unlockable:
+                    (!equipEntryLevel.cost.resources?.length ||
+                        hasItemStacks(
+                            equipEntryLevel.cost.resources,
+                            char.gameState.inventory
+                        ).result === ActionResult.SUCCESS) &&
+                    !equipEntryLevel.unlocked
+            }
+        } else if (Object.keys(char.weapons).filter(w => id.includes(w))) {
             console.log("FOUND WEAPON!")
+            if (id.includes("_refining_")) {
+                const weaponId = id.split("_refining_")[0]
+                const refiningLv = id.split("_refining_")[1]
+                const weaponEntry = getWeaponById(weaponId, char.weapons)
+                const weaponEntryLevel = weaponEntry.refining.levels.filter(
+                    l => l.id === refiningLv
+                )[0]
+                return {
+                    id,
+                    title: weaponEntryLevel.name + " " + weaponEntry.name,
+                    unlocked: weaponEntryLevel.unlocked,
+                    cost: weaponEntryLevel.cost,
+                    description: weaponEntryLevel.description,
+                    unlockable:
+                        (!weaponEntryLevel.cost.resources?.length ||
+                            hasItemStacks(
+                                weaponEntryLevel.cost.resources,
+                                char.gameState.inventory
+                            ).result === ActionResult.SUCCESS) &&
+                        !weaponEntryLevel.unlocked
+                }
+            } else {
+                const weaponId = id.split(":")[0]
+                const skillId = id.split(":")[1].split("#")[0]
+                const skillLevel = id.split(":")[1].split("#")[1]
+                const weaponEntry = getWeaponById(weaponId, char.weapons)
+                const skillEntryLevel = weaponEntry.skills.levels.filter(
+                    l => l.id === id
+                )[0]
+                return {
+                    id,
+                    title: weaponEntry.name + ": " + skillEntryLevel.name,
+                    unlocked: skillEntryLevel.unlocked,
+                    cost: skillEntryLevel.cost,
+                    description: skillEntryLevel.description,
+                    unlockable:
+                        (!skillEntryLevel.cost.resources?.length ||
+                            hasItemStacks(
+                                skillEntryLevel.cost.resources,
+                                char.gameState.inventory
+                            ).result === ActionResult.SUCCESS) &&
+                        (!skillEntryLevel.cost.xp ||
+                            skillEntryLevel.unlockProgress >=
+                                skillEntryLevel.cost.xp) &&
+                        !skillEntryLevel.unlocked
+                }
+            }
         }
         return {
             id,

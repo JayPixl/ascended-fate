@@ -32,7 +32,8 @@ export const defaultUpgradeTree: PlayerUpgradeTree = {
         "0": { unlocked: true }
     },
     quarterstaff: {
-        "0": { unlocked: true }
+        "0": { unlocked: true },
+        "1": { unlocked: false }
     },
     soulbound_grimoire: {
         "0": { unlocked: true }
@@ -43,7 +44,8 @@ export const defaultUpgradeTree: PlayerUpgradeTree = {
         "0": { unlocked: true }
     },
     "quarterstaff:heavy_strike": {
-        "0": { unlocked: true }
+        "0": { unlocked: true },
+        "1": { unlocked: false }
     },
     "soulbound_grimoire:focused_blast": {
         "0": { unlocked: true }

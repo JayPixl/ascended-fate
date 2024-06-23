@@ -13,7 +13,9 @@ import {
     getDefaultEquipment,
     getDefaultWeapons
 } from "~/utils/engine/gamestate"
+import { getEquipmentById } from "~/utils/engine/lib/equipment"
 import { ITEMS, ItemStack } from "~/utils/engine/lib/generation"
+import { getWeaponById } from "~/utils/engine/lib/weapons"
 import {
     ClassName,
     PlayerUpgradeTree,
@@ -205,7 +207,241 @@ export const loader: LoaderFunction = async ({ request }) => {
             return json({ character })
         }
         case "upgrade": {
-            break
+            const nodeId = searchParams.get("id") as string
+            if (!nodeId) return json({ error: "Invalid upgrade ID." })
+
+            if (nodeId === "maxHP") {
+                console.log("UPGRADING MAX HP!")
+                return json({ character: char })
+            } else if (nodeId === "maxRP") {
+                console.log("UPGRADING MAX RP!")
+                return json({ character: char })
+            } else if (
+                Object.keys(char.weapons).filter(w => nodeId.includes(w)).length
+            ) {
+                if (nodeId.includes("_refining_")) {
+                    console.log("UPGRADING WEAPON REFINEMENT!")
+                    const refiningEntry = getWeaponById(
+                        nodeId.split("_refining_")[0],
+                        char.weapons
+                    ).refining.levels.filter(
+                        l => l.id === nodeId.split("_refining_")[1]
+                    )[0]
+                    if (
+                        !refiningEntry ||
+                        refiningEntry.unlocked ||
+                        !refiningEntry.cost.resources
+                    )
+                        return json({
+                            error: "Cannot upgrade!",
+                            character: char
+                        })
+                    if (
+                        !hasItemStacks(
+                            refiningEntry.cost.resources,
+                            char.gameState.inventory
+                        )
+                    )
+                        return json({
+                            error: "You lack sufficient resources to upgrade!"
+                        })
+
+                    const removeResult = removeItemStacks(
+                        refiningEntry.cost.resources,
+                        char.gameState.inventory
+                    )
+                    if (removeResult.result === ActionResult.FAIL) {
+                        return json({
+                            error: "Could not modify inventory!",
+                            character: char
+                        })
+                    }
+
+                    const character = await prisma.character.update({
+                        where: { id: char.id },
+                        data: {
+                            weapons: evolve(
+                                {
+                                    [nodeId.split("_refining_")[0]]: {
+                                        refining: {
+                                            [nodeId.split("_refining_")[1]]: {
+                                                unlocked: true
+                                            }
+                                        }
+                                    }
+                                },
+                                char.weapons
+                            ) as unknown as Prisma.InputJsonObject,
+                            gameState: evolve(
+                                { inventory: removeResult.inventory },
+                                char.gameState
+                            ) as unknown as Prisma.InputJsonObject
+                        }
+                    })
+
+                    return json({ character })
+                } else {
+                    console.log("UPGRADING WEAPON SKILL!")
+                    const skillEntry = getWeaponById(
+                        nodeId.split(":")[0],
+                        char.weapons
+                    ).skills.levels.filter(l => l.id === nodeId)[0]
+
+                    if (
+                        !skillEntry ||
+                        skillEntry.unlocked ||
+                        !skillEntry.cost.resources ||
+                        !skillEntry.cost.xp
+                    )
+                        return json({
+                            error: "Cannot upgrade!",
+                            character: char
+                        })
+                    if (
+                        !hasItemStacks(
+                            skillEntry.cost.resources,
+                            char.gameState.inventory
+                        ) ||
+                        skillEntry.unlockProgress < skillEntry.cost.xp
+                    )
+                        return json({
+                            error: "You lack sufficient resources to upgrade!"
+                        })
+
+                    const removeResult = removeItemStacks(
+                        skillEntry.cost.resources,
+                        char.gameState.inventory
+                    )
+                    if (removeResult.result === ActionResult.FAIL) {
+                        return json({
+                            error: "Could not modify inventory!",
+                            character: char
+                        })
+                    }
+
+                    const character = await prisma.character.update({
+                        where: { id: char.id },
+                        data: {
+                            weapons: evolve(
+                                {
+                                    [nodeId.split(":")[0]]: {
+                                        skills: {
+                                            [nodeId.split("#")[0]]: {
+                                                [nodeId.split("#")[1]]: {
+                                                    unlocked: true,
+                                                    unlockProgress: 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                char.weapons
+                            ) as unknown as Prisma.InputJsonObject,
+                            gameState: evolve(
+                                { inventory: removeResult.inventory },
+                                char.gameState
+                            ) as unknown as Prisma.InputJsonObject
+                        }
+                    })
+
+                    return json({ character })
+                }
+                return json({ character: char })
+            } else if (
+                Object.keys(char.equipment).filter(e => nodeId.includes(e))
+                    .length
+            ) {
+                console.log("UPGRADING EQUIPMENT!")
+                //return json({ character: char })
+                const refiningEntry = getEquipmentById(
+                    nodeId.split("_refining_")[0],
+                    char.equipment
+                ).refining.levels.filter(
+                    l => l.id === nodeId.split("_refining_")[1]
+                )[0]
+                if (
+                    !refiningEntry ||
+                    refiningEntry.unlocked ||
+                    !refiningEntry.cost.resources
+                )
+                    return json({
+                        error: "Cannot upgrade!",
+                        character: char
+                    })
+                if (
+                    !hasItemStacks(
+                        refiningEntry.cost.resources,
+                        char.gameState.inventory
+                    )
+                )
+                    return json({
+                        error: "You lack sufficient resources to upgrade!"
+                    })
+
+                const removeResult = removeItemStacks(
+                    refiningEntry.cost.resources,
+                    char.gameState.inventory
+                )
+
+                if (removeResult.result === ActionResult.FAIL) {
+                    return json({
+                        error: "Could not modify inventory!",
+                        character: char
+                    })
+                }
+
+                const character = await prisma.character.update({
+                    where: { id: char.id },
+                    data: {
+                        equipment: evolve(
+                            {
+                                [nodeId.split("_refining_")[0]]: {
+                                    refining: {
+                                        [nodeId.split("_refining_")[1]]: {
+                                            unlocked: true
+                                        }
+                                    }
+                                }
+                            },
+                            char.equipment
+                        ) as unknown as Prisma.InputJsonObject,
+                        gameState: evolve(
+                            { inventory: removeResult.inventory },
+                            char.gameState
+                        ) as unknown as Prisma.InputJsonObject
+                    }
+                })
+
+                return json({ character })
+            } else {
+                return json({ error: "Invalid upgrade ID." })
+            }
+        }
+        case "loot": {
+            const item = searchParams.get("item") as string
+            const amount = Number((searchParams.get("amount") as string) || "1")
+            const addResult = addInventoryItem(char.gameState.inventory, {
+                id: item as keyof typeof ITEMS,
+                amount,
+                components: {}
+            })
+            if (addResult.result === ActionResult.FAIL)
+                return json({
+                    error: "Could not update inventory.",
+                    character: char
+                })
+            const character = await prisma.character.update({
+                where: {
+                    id: char.id
+                },
+                data: {
+                    gameState: evolve(
+                        { inventory: addResult.inventory },
+                        char.gameState
+                    ) as unknown as Prisma.InputJsonObject
+                }
+            })
+            return json({ character })
         }
         default: {
             return json({ error: "Invalid action type!" })
@@ -261,7 +497,7 @@ export const hasItemStacks: (
     itemStacks: ItemStack[],
     inventory: ItemStack[]
 ) => { result: ActionResult } = (itemStacks, inventory) => {
-    const copiedInventory: ItemStack[] = [...inventory]
+    const copiedInventory: ItemStack[] = deepCopy(inventory)
 
     if (
         removeItemStacks(itemStacks, copiedInventory).result ===
@@ -283,34 +519,31 @@ export const removeItemStacks: (
     itemStacks,
     inventory
 ) => {
-    const copiedInventory: ItemStack[] = [...inventory]
-    for (var i: number = 0; i < itemStacks.length; i++) {
-        const stackToRemove: ItemStack = { ...itemStacks[i] }
+    const copiedInventory: ItemStack[] = deepCopy(inventory)
+
+    for (let i = 0; i < itemStacks.length; i++) {
+        const stackToRemove: ItemStack = deepCopy(itemStacks[i])
+
         const matchingStacks = copiedInventory
             .filter(
-                i =>
-                    i.id === stackToRemove.id &&
-                    JSON.stringify(i.components) ===
+                item =>
+                    item.id === stackToRemove.id &&
+                    JSON.stringify(item.components) ===
                         JSON.stringify(stackToRemove.components)
             )
             .sort((a, b) => a.amount - b.amount)
-        while (true) {
-            if (!matchingStacks.length) {
-                return {
-                    result: ActionResult.FAIL,
-                    inventory
-                }
-            }
+
+        while (stackToRemove.amount > 0 && matchingStacks.length > 0) {
             const matchingStack = matchingStacks[0]
             const amountToRemove = Math.min(
-                matchingStacks[0].amount,
+                matchingStack.amount,
                 stackToRemove.amount
             )
 
             stackToRemove.amount -= amountToRemove
             matchingStack.amount -= amountToRemove
 
-            if (matchingStack.amount === 0) {
+            if (matchingStack.amount <= 0) {
                 const index = copiedInventory.indexOf(matchingStack)
                 if (index > -1) {
                     copiedInventory.splice(index, 1)
@@ -318,7 +551,15 @@ export const removeItemStacks: (
                 matchingStacks.shift()
             }
         }
+
+        if (stackToRemove.amount > 0) {
+            return {
+                result: ActionResult.FAIL,
+                inventory
+            }
+        }
     }
+
     return {
         result: ActionResult.SUCCESS,
         inventory: copiedInventory
@@ -353,4 +594,8 @@ export function updateJsonValue<T extends Object>(
         ...original,
         ...updates
     } as unknown as Prisma.InputJsonObject
+}
+
+export function deepCopy<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj))
 }
