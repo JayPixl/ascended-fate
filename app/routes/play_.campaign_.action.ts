@@ -14,7 +14,8 @@ import {
     getDefaultWeapons
 } from "~/utils/engine/gamestate"
 import { getEquipmentById } from "~/utils/engine/lib/equipment"
-import { ITEMS, ItemStack } from "~/utils/engine/lib/generation"
+import { ItemStack } from "~/utils/engine/lib/generation"
+import { ITEMS } from "~/utils/engine/lib/items"
 import { getWeaponById } from "~/utils/engine/lib/weapons"
 import {
     ClassName,

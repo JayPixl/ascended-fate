@@ -20,6 +20,7 @@ import { EQUIPMENT, getEquipmentById } from "./lib/equipment"
 import { WEAPONS, getWeaponById } from "./lib/weapons"
 import { SKILLS } from "./lib/skills"
 import { ActionResult, hasItemStacks } from "~/routes/play_.campaign_.action"
+import { EnemyName } from "./lib/enemies"
 
 export interface GameState {
     inventory: ItemStack[]
@@ -73,7 +74,12 @@ export interface GameTile {
     tileNodes: TileNode[]
 }
 
-export type TileNode = AscensionNode | MerchantNode | ResourceNode | DungeonNode
+export type TileNode =
+    | AscensionNode
+    | MerchantNode
+    | ResourceNode
+    | DungeonNode
+    | EncounterNode
 
 export interface AbstractTileNode<T extends string> {
     type: T
@@ -90,11 +96,20 @@ export interface ResourceNode extends AbstractTileNode<"resource"> {
     pool: ItemStack[]
 }
 
+export interface EncounterNode extends AbstractTileNode<"encounter"> {
+    pool: Enemy[]
+}
+
 export interface DungeonNode extends AbstractTileNode<"dungeon"> {}
 
 export type Biome = keyof typeof BIOMES
 
 export type TileNodeType = keyof typeof TILE_NODES
+
+export interface Enemy {
+    id: EnemyName
+    variant: string
+}
 
 type EquipmentName<C extends ClassName = ClassName> =
     (typeof CLASSES)[C]["equipment"][number]

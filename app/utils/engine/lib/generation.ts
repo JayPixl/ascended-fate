@@ -1,5 +1,12 @@
 import { getRandomInt } from "~/utils/name-generator"
-import { Biome, DungeonNode, MerchantNode, ResourceNode } from "../gamestate"
+import {
+    Biome,
+    DungeonNode,
+    EncounterNode,
+    MerchantNode,
+    ResourceNode
+} from "../gamestate"
+import { ITEMS } from "./items"
 
 export interface MultipliableWeighted {
     weight: number
@@ -21,29 +28,6 @@ export const BIOMES = {
         title: "Mountain",
         weight: 1,
         multiplier: 0.2
-    }
-} as const
-
-export const ITEMS = {
-    wood: {
-        maxStack: 8,
-        usable: false,
-        name: "Wood"
-    },
-    life_shard: {
-        maxStack: 8,
-        usable: false,
-        name: "Life Shard"
-    },
-    stamina_shard: {
-        maxStack: 8,
-        usable: false,
-        name: "Stamina Shard"
-    },
-    string: {
-        name: "String",
-        maxStack: 8,
-        usable: false
     }
 } as const
 
@@ -204,6 +188,19 @@ export const TILE_NODES = {
                 APCost: 0,
                 type: "dungeon",
                 usages: -1
+            }
+        }
+    },
+    encounter: {
+        weight: 2,
+        multiplier: 0,
+        factory: (biome: Biome, ascension: number): EncounterNode => {
+            return {
+                type: "encounter",
+                APCost: 1,
+                title: "My Encounter",
+                usages: 1,
+                pool: []
             }
         }
     }
