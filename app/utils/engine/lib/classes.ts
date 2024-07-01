@@ -3,21 +3,39 @@ export const CLASSES = {
         name: "Wanderer",
         equipment: ["wayfarers_tunic"],
         weapons: ["quarterstaff"],
-        HP: [3, 5, 5, 12],
-        RP: [4, 6, 6, 14]
+        HP: [8, 8, 12],
+        RP: [7, 7, 11],
+        luck: 8,
+        dexterity: 9,
+        moxie: 3,
+        constitution: 4,
+        stamina: 12,
+        fortitude: 2
     },
     scribe: {
         name: "Scribe",
         equipment: ["scholarly_robe"],
         weapons: ["soulbound_grimoire"],
-        HP: [4, 5, 5, 10],
-        RP: [3, 4, 4, 8]
+        HP: [10, 10, 15],
+        RP: [10, 10, 15],
+        luck: 6,
+        dexterity: 3,
+        moxie: 5,
+        constitution: 2,
+        stamina: 8,
+        fortitude: 3
     },
     brute: {
         name: "Brute",
         equipment: ["hardened_leather_armor"],
         weapons: ["battleaxe"],
-        HP: [4, 6, 6, 18],
-        RP: [3, 4, 4, 12]
+        HP: [15, 15, 24],
+        RP: [6, 6, 10],
+        luck: 2,
+        dexterity: 3,
+        moxie: 11,
+        constitution: 3,
+        stamina: 8,
+        fortitude: 4
     }
 } as const

@@ -37,6 +37,20 @@ export class GameContextHandler {
         )
     }
 
+    public doEncounter(nodeIndex: number) {
+        this.doAction<EncounterAction>(
+            { type: "encounter", index: nodeIndex },
+            res => {
+                res.data?.character
+                    ? this.setGameContext({
+                          ...this.gameContext,
+                          character: res.data.character
+                      })
+                    : console.log(res.data?.error)
+            }
+        )
+    }
+
     public travel() {
         this.doAction<TravelAction>({ type: "travel" }, res => {
             res.data?.character
@@ -133,6 +147,7 @@ export type ActionType =
     | TravelAction
     | RestAction
     | UpgradeNodeAction
+    | EncounterAction
 
 export interface AbstractAction<T extends string> {
     type: T
@@ -141,6 +156,16 @@ export interface AbstractAction<T extends string> {
 }
 
 export interface ResourceAction extends AbstractAction<"resource"> {
+    params: {
+        index: number
+    }
+    response: {
+        error?: string
+        character?: CorrectedCharacter
+    }
+}
+
+export interface EncounterAction extends AbstractAction<"encounter"> {
     params: {
         index: number
     }

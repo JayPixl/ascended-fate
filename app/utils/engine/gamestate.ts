@@ -97,7 +97,7 @@ export interface ResourceNode extends AbstractTileNode<"resource"> {
 }
 
 export interface EncounterNode extends AbstractTileNode<"encounter"> {
-    pool: Enemy[]
+    enemy: EnemyName
 }
 
 export interface DungeonNode extends AbstractTileNode<"dungeon"> {}
@@ -105,11 +105,6 @@ export interface DungeonNode extends AbstractTileNode<"dungeon"> {}
 export type Biome = keyof typeof BIOMES
 
 export type TileNodeType = keyof typeof TILE_NODES
-
-export interface Enemy {
-    id: EnemyName
-    variant: string
-}
 
 type EquipmentName<C extends ClassName = ClassName> =
     (typeof CLASSES)[C]["equipment"][number]
@@ -235,8 +230,8 @@ export const createGameState: (
     upgradeTree: PlayerUpgradeTree,
     _class: keyof typeof CLASSES
 ) => GameState = (upgradeTree, _class) => {
-    const hp = getRandomInt(CLASSES[_class]["HP"][0], CLASSES[_class]["HP"][1])
-    const rp = getRandomInt(CLASSES[_class]["RP"][0], CLASSES[_class]["RP"][1])
+    const hp = CLASSES[_class]["HP"][0] //"HP"][0], CLASSES[_class]["HP"][1])
+    const rp = CLASSES[_class]["RP"][0] //getRandomInt(CLASSES[_class]["RP"][0], CLASSES[_class]["RP"][1])
 
     return {
         inventory: [],

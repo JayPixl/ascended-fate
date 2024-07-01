@@ -35,6 +35,17 @@ export default function ActionNode({
                 >
                     Collect (1 AP)
                 </button>
+            ) : node.type === "encounter" ? (
+                <button
+                    disabled={
+                        !context ||
+                        node.usages === 0 ||
+                        node.APCost > context?.character.gameState.stats.AP
+                    }
+                    onClick={() => handler!.doEncounter(index)}
+                >
+                    Battle (1 AP)
+                </button>
             ) : (
                 <></>
             )}

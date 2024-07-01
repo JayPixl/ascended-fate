@@ -1,4 +1,5 @@
-import { ITEMS, ItemStack } from "~/utils/engine/lib/generation"
+import { ItemStack } from "~/utils/engine/lib/generation"
+import { ITEMS } from "~/utils/engine/lib/items"
 
 export default function RenderedItemStack({
     itemStack

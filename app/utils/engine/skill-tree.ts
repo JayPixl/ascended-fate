@@ -11,9 +11,9 @@ export const defaultUpgradeTree: PlayerUpgradeTree = {
     // swineig: { HP: 6, RP: 4, unlocked: true },
 
     // CLASSES
-    wanderer: { unlocked: true, HP: 5, RP: 6, xp: 0 },
-    scribe: { unlocked: true, HP: 5, RP: 4, xp: 0 },
-    brute: { unlocked: true, HP: 6, RP: 4, xp: 0 },
+    wanderer: { unlocked: true, HP: 8, RP: 7, xp: 0 },
+    scribe: { unlocked: true, HP: 10, RP: 10, xp: 0 },
+    brute: { unlocked: true, HP: 15, RP: 6, xp: 0 },
 
     // EQUIPMENT
     hardened_leather_armor: {

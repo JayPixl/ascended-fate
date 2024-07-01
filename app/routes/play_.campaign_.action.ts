@@ -4,6 +4,7 @@ import type { LoaderFunction, MetaFunction } from "@remix-run/node"
 import { Link, json, redirect, useLoaderData } from "@remix-run/react"
 import { evolve } from "evolve-ts"
 import { generate } from "randomstring"
+import { createBattleContext } from "~/utils/engine/battlecontext"
 import {
     CharEquipmentMap,
     CharWeaponMap,
@@ -442,6 +443,35 @@ export const loader: LoaderFunction = async ({ request }) => {
                     ) as unknown as Prisma.InputJsonObject
                 }
             })
+            return json({ character })
+        }
+        case "encounter": {
+            const nodeIndex = Number(searchParams.get("index") as string)
+            if (Number.isNaN(nodeIndex) || nodeIndex < 0 || nodeIndex > 2) {
+                return json({ error: "Invalid node index!" })
+            }
+            const targetNode = char.gameState.currentTile.tileNodes[nodeIndex]
+            if (targetNode.type !== "encounter" || targetNode.usages === 0) {
+                return json({ error: "Invalid node!" })
+            }
+
+            if (targetNode.APCost > char.gameState.stats.AP) {
+                return json({ error: "Not enough AP!" })
+            }
+
+            const battleContext = createBattleContext(char, targetNode)
+
+            const character = await prisma.character.update({
+                where: {
+                    id: activeCharacter.id
+                },
+                data: {}
+            })
+
+            if (!character) {
+                return json({ error: "Could not update character!" })
+            }
+
             return json({ character })
         }
         default: {

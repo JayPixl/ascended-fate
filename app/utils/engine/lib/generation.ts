@@ -7,6 +7,7 @@ import {
     ResourceNode
 } from "../gamestate"
 import { ITEMS } from "./items"
+import { ENEMIES } from "./enemies"
 
 export interface MultipliableWeighted {
     weight: number
@@ -195,12 +196,23 @@ export const TILE_NODES = {
         weight: 2,
         multiplier: 0,
         factory: (biome: Biome, ascension: number): EncounterNode => {
+            let enemyPoolWeighting: Partial<
+                Record<keyof typeof ENEMIES, MultipliableWeighted>
+            > = {}
+            for (let enemy of Object.entries(ENEMIES)) {
+                enemyPoolWeighting[enemy[0] as keyof typeof ENEMIES] =
+                    enemy[1].spawnWeight(biome, ascension)
+            }
+            const enemyId = calculateWeighted(
+                enemyPoolWeighting,
+                ascension
+            ) as keyof typeof ENEMIES
             return {
                 type: "encounter",
                 APCost: 1,
-                title: "My Encounter",
+                title: ENEMIES[enemyId].name,
                 usages: 1,
-                pool: []
+                enemy: enemyId
             }
         }
     }
