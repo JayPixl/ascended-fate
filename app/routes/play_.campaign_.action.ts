@@ -4,7 +4,7 @@ import type { LoaderFunction, MetaFunction } from "@remix-run/node"
 import { Link, json, redirect, useLoaderData } from "@remix-run/react"
 import { evolve } from "evolve-ts"
 import { generate } from "randomstring"
-import { createBattleContext } from "~/utils/engine/battlecontext"
+import { createEncounterBattleContext } from "~/utils/engine/battlecontext"
 import {
     CharEquipmentMap,
     CharWeaponMap,
@@ -459,20 +459,23 @@ export const loader: LoaderFunction = async ({ request }) => {
                 return json({ error: "Not enough AP!" })
             }
 
-            const battleContext = createBattleContext(char, targetNode)
+            const battleContext = createEncounterBattleContext(char, targetNode)
+            console.log(battleContext)
 
-            const character = await prisma.character.update({
-                where: {
-                    id: activeCharacter.id
-                },
-                data: {}
-            })
+            return json({ error: battleContext })
 
-            if (!character) {
-                return json({ error: "Could not update character!" })
-            }
+            // const character = await prisma.character.update({
+            //     where: {
+            //         id: activeCharacter.id
+            //     },
+            //     data: {}
+            // })
 
-            return json({ character })
+            // if (!character) {
+            //     return json({ error: "Could not update character!" })
+            // }
+
+            // return json({ character })
         }
         default: {
             return json({ error: "Invalid action type!" })

@@ -21,6 +21,7 @@ import { WEAPONS, getWeaponById } from "./lib/weapons"
 import { SKILLS } from "./lib/skills"
 import { ActionResult, hasItemStacks } from "~/routes/play_.campaign_.action"
 import { EnemyName } from "./lib/enemies"
+import { IBattleContext } from "./battlecontext"
 
 export interface GameState {
     inventory: ItemStack[]
@@ -60,6 +61,13 @@ export interface CharacterStats {
     HP: UpgradableStat
     RP: UpgradableStat
     AP: number
+    dexterity: number
+    luck: number
+    moxie: number
+    SHD: number
+    fortitude: number
+    stamina: number
+    constitution: number
 }
 
 export interface UpgradableStat {
@@ -98,6 +106,7 @@ export interface ResourceNode extends AbstractTileNode<"resource"> {
 
 export interface EncounterNode extends AbstractTileNode<"encounter"> {
     enemy: EnemyName
+    battleContext: IBattleContext | null
 }
 
 export interface DungeonNode extends AbstractTileNode<"dungeon"> {}
@@ -233,6 +242,8 @@ export const createGameState: (
     const hp = CLASSES[_class]["HP"][0] //"HP"][0], CLASSES[_class]["HP"][1])
     const rp = CLASSES[_class]["RP"][0] //getRandomInt(CLASSES[_class]["RP"][0], CLASSES[_class]["RP"][1])
 
+    const myClass = CLASSES[_class]
+
     return {
         inventory: [],
         stats: {
@@ -246,10 +257,17 @@ export const createGameState: (
                 max: rp,
                 upgradableMax: upgradeTree[_class]["RP"]
             },
-            AP: getRandomInt(8, 12)
+            AP: myClass.stamina,
+            constitution: myClass.constitution,
+            dexterity: myClass.dexterity,
+            fortitude: myClass.fortitude,
+            luck: myClass.luck,
+            moxie: myClass.moxie,
+            SHD: myClass.fortitude,
+            stamina: myClass.stamina
         },
         currentTile: generateTile(1)
-    }
+    } as GameState
 }
 
 export const generateTile: (ascension: number) => GameTile = ascension => {

@@ -16,6 +16,9 @@ export const ENEMIES = {
         MDEF: {
             base: 1
         },
+        luck: 3,
+        dexterity: 2,
+        moxie: 5,
         skills: ["slime:engulf#0", "slime:bash#0", "slime:pound#0"],
         equipment: [],
         spawnWeight: (

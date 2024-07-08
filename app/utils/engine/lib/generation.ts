@@ -211,6 +211,7 @@ export const TILE_NODES = {
                 type: "encounter",
                 APCost: 1,
                 title: ENEMIES[enemyId].name,
+                battleContext: null,
                 usages: 1,
                 enemy: enemyId
             }
