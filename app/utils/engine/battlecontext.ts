@@ -3,10 +3,11 @@ import { CorrectedCharacter } from "../types"
 import { EncounterNode } from "./gamestate"
 import { STATUS_EFFECTS } from "./lib/battle-effects"
 import { ENEMIES, EnemyName } from "./lib/enemies"
-import { SkillName } from "./lib/skills"
 import { ISkillEntry, WeaponName, getWeaponById } from "./lib/weapons"
 import { evolve } from "evolve-ts"
+import { append } from "ramda"
 import { getRandomInt } from "../name-generator"
+import { IBattleSkillEntry, getSkillEntry } from "./lib/skills"
 
 export const getCurrentSkills: (
     char: CorrectedCharacter
@@ -138,16 +139,41 @@ export const doRound: (
         }
         const enemy = getBattleEnemy(battleContext)
         const selection = {
-            ["@" + char.id]: [data.selection as SkillName],
+            ["@" + char.id]: [data.selection],
             [enemy[0]]: [
-                enemy[1].skills[
-                    getRandomInt(0, enemy[1].skills.length - 1)
-                ] as SkillName
+                enemy[1].skills[getRandomInt(0, enemy[1].skills.length - 1)]
             ]
         }
         const result = doBattleRound(battleContext, selection)
+        if (result.errors.length) console.log(result.errors)
+        return {
+            character: fixBattleCharacter(
+                char,
+                result.battleContext,
+                activeBattleIndex
+            )
+        }
     } else if (lastTurn.split("-")[0] === "combat") {
         // Do Recover Round
+        if (!data?.selection || data.selection !== "recover") {
+            return {
+                error: "Invalid selection"
+            }
+        }
+        const enemy = getBattleEnemy(battleContext)
+        const selection = {
+            ["@" + char.id]: [data.selection],
+            [enemy[0]]: ["recover"]
+        }
+        const result = doRecoveryRound(battleContext, selection)
+        if (result.errors.length) console.log(result.errors)
+        return {
+            character: fixBattleCharacter(
+                char,
+                result.battleContext,
+                activeBattleIndex
+            )
+        }
     } else {
         return { error: "Invalid Round Data!" }
     }
@@ -171,20 +197,43 @@ const doPreRound: (battleContext: IBattleContext) => {
 
 const doBattleRound: (
     battleContext: IBattleContext,
-    selected: Record<string, SkillName[]>
+    selected: Record<string, string[]>
 ) => { battleContext: IBattleContext; errors: string[] } = (
     battleContext,
     selected
 ) => {
     const battleContextHandler = new BattleContextHandler(battleContext)
 
-    const foundEffects = getBattleEffects("BOT", battleContextHandler.context)
+    const skillEntries: Record<string, IBattleSkillEntry> = {}
 
-    foundEffects.length && console.log(JSON.stringify(foundEffects))
-
-    battleContextHandler.doTurn({
-        [nextTurn(getBattleTurnKey(battleContext)!)]: { actions: [] }
+    Object.entries(selected).map(([userId, skills]) => {
+        skillEntries[userId] = getSkillEntry(skills[0])
     })
+
+    // Preliminary Skill Actions
+
+    // Compare types, initiative, determine winner
+
+    // Do skill aftermath actions
+
+    // Deal Damage
+
+    return {
+        battleContext: battleContextHandler.context,
+        errors: []
+    }
+}
+
+const doRecoveryRound: (
+    battleContext: IBattleContext,
+    selected: Record<string, string[]>
+) => {
+    battleContext: IBattleContext
+    errors: string[]
+} = (battleContext, selected) => {
+    const battleContextHandler = new BattleContextHandler(battleContext)
+
+    // Do recover RP
 
     return {
         battleContext: battleContextHandler.context,
@@ -266,16 +315,29 @@ const getBattleEffects: (
 
 class BattleContextHandler {
     public context: IBattleContext
+    private currentTurn: string
 
     constructor(context: IBattleContext) {
-        this.context = deepCopy(context)
+        this.currentTurn = nextTurn(getBattleTurnKey(context) || undefined)
+        this.context = deepCopy(
+            evolve(
+                {
+                    turns: {
+                        [this.currentTurn]: { actions: [] }
+                    }
+                },
+                context
+            )
+        )
     }
 
-    public doTurn(turn: ICombatTurn | IPreTurn | IRecoveryTurn): void {
+    public addAction(action: IBattleAction): void {
         this.context = evolve(
             {
                 turns: {
-                    ...turn
+                    [this.currentTurn]: {
+                        actions: append(action)
+                    }
                 }
             },
             this.context
@@ -291,7 +353,7 @@ export const getBattleTurnKey: (
     if (turnKeys.length === 0) return null
 
     let compareIndex = 0
-    let lastMatch = "pre-" + 0
+    let lastMatch = "pre-0"
 
     while (true) {
         const keysfromRound = turnKeys.filter(
@@ -350,6 +412,12 @@ export const getActiveBattleIndex: (
     )
 }
 
+export enum IAttackType {
+    VITALITY = "VIT",
+    FURY = "FRY",
+    PRECISION = "PRC"
+}
+
 export interface IBattleContext {
     participants: Record<string, IBattleParticipant>
     turns: IPreTurn & ICombatTurn & IRecoveryTurn
@@ -394,7 +462,7 @@ export type IPreTurn = Record<
 export type ICombatTurn = Record<
     `combat-${number}`,
     {
-        selected: Record<string, SkillName[]>
+        selected: Record<string, string[]>
         actions: IBattleAction[]
     }
 >
@@ -430,6 +498,24 @@ export interface IBattleStats {
 export interface IMaxableStat {
     current: number
     max: number
+}
+
+export interface IDamageEntry {
+    DMG: {
+        base: number
+    }
+    PDMG: {
+        base: number
+    }
+    EDMG: {
+        base: number
+        fire: number
+        electric: number
+        ice: number
+    }
+    MDMG: {
+        base: number
+    }
 }
 
 export type IBattleAction = DamageAction

@@ -8,6 +8,7 @@ import { createEncounterBattleContext } from "~/utils/engine/battlecontext"
 import {
     CharEquipmentMap,
     CharWeaponMap,
+    EncounterNode,
     GameState,
     createGameState,
     generateTile,
@@ -462,20 +463,34 @@ export const loader: LoaderFunction = async ({ request }) => {
             const battleContext = createEncounterBattleContext(char, targetNode)
             console.log(battleContext)
 
-            return json({ error: battleContext })
+            //return json({ error: battleContext })
 
-            // const character = await prisma.character.update({
-            //     where: {
-            //         id: activeCharacter.id
-            //     },
-            //     data: {}
-            // })
+            const character = await prisma.character.update({
+                where: {
+                    id: activeCharacter.id
+                },
+                data: {
+                    gameState: evolve(
+                        {
+                            currentTile: {
+                                tileNodes: list =>
+                                    list.map((n, idx) =>
+                                        idx === nodeIndex
+                                            ? { ...n, battleContext }
+                                            : n
+                                    )
+                            }
+                        },
+                        char.gameState
+                    ) as unknown as Prisma.InputJsonObject
+                }
+            })
 
-            // if (!character) {
-            //     return json({ error: "Could not update character!" })
-            // }
+            if (!character) {
+                return json({ error: "Could not update character!" })
+            }
 
-            // return json({ character })
+            return json({ character })
         }
         default: {
             return json({ error: "Invalid action type!" })
