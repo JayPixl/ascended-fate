@@ -33,6 +33,9 @@ export interface IGameContext {
     user: User
     character: CorrectedCharacter
     screenContext: IScreenContext
+    battleState?: {
+        context: IBattleContext
+    }
 }
 
 export interface IScreenContext {

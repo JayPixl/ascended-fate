@@ -26,9 +26,11 @@ export const createEncounterBattleContext: (
     node: EncounterNode
 ) => IBattleContext = (char, node) => {
     return {
+        currentTurn: "pre-0",
         participants: {
             ["@" + char.id]: {
                 skills: getCurrentSkills(char).map(skill => skill.id),
+                queuedRPCost: 0,
                 stats: {
                     HP: {
                         current: char.gameState.stats.HP.current,
@@ -82,6 +84,7 @@ export const createEncounterBattleContext: (
                     luck: ENEMIES[node.enemy].luck,
                     moxie: ENEMIES[node.enemy].moxie
                 },
+                queuedRPCost: 0,
                 skills: ENEMIES[node.enemy].skills,
                 stationary_effects: [],
                 status_effects: []
@@ -112,9 +115,9 @@ export const doRound: (
     if (battleContext === null)
         return { error: "Corrupted Battle Context Data!" }
 
-    const lastTurn = getBattleTurnKey(battleContext)
+    const currentTurnType = battleContext.currentTurn.split("-")[0]
 
-    if (!lastTurn || lastTurn.split("-")[0] === "recover") {
+    if (currentTurnType === "pre") {
         // Do Pre Round
         const result = doPreRound(battleContext)
         if (result.errors.length) console.log(result.errors)
@@ -125,7 +128,7 @@ export const doRound: (
                 activeBattleIndex
             )
         }
-    } else if (lastTurn.split("-")[0] === "pre") {
+    } else if (currentTurnType === "combat") {
         // Do Battle Round
         if (
             !data?.selection ||
@@ -146,6 +149,7 @@ export const doRound: (
         }
         const result = doBattleRound(battleContext, selection)
         if (result.errors.length) console.log(result.errors)
+        console.log(JSON.stringify(result.battleContext.turns))
         return {
             character: fixBattleCharacter(
                 char,
@@ -153,7 +157,7 @@ export const doRound: (
                 activeBattleIndex
             )
         }
-    } else if (lastTurn.split("-")[0] === "combat") {
+    } else if (currentTurnType === "recovery") {
         // Do Recover Round
         if (!data?.selection || data.selection !== "recover") {
             return {
@@ -190,7 +194,7 @@ const doPreRound: (battleContext: IBattleContext) => {
     foundEffects.length && console.log(JSON.stringify(foundEffects))
 
     return {
-        battleContext: battleContextHandler.context,
+        battleContext: battleContextHandler.finalize(),
         errors: []
     }
 }
@@ -214,12 +218,97 @@ const doBattleRound: (
 
     // Compare types, initiative, determine winner
 
+    let combatResult: ICombatResult = {
+        winner: undefined,
+        critical: false,
+        skills: selected
+    }
+
+    const card1 = Object.entries(skillEntries)[0]
+    const card2 = Object.entries(skillEntries)[1]
+
+    if (card1[1].type !== card2[1].type) {
+        // One wins by type
+        const typeWinner = typeBeats(card1[1].type, card2[1].type)
+            ? card1[0]
+            : card2[0]
+        let initiative1 = card1[1].initiative
+        let initiative2 = card2[1].initiative
+
+        if (typeWinner === card1[0]) {
+            if (initiative1 > initiative2) {
+                // Roll for crit
+                combatResult = {
+                    critical: false,
+                    winner: typeWinner,
+                    skills: selected
+                }
+            } else {
+                // Roll for hit
+                combatResult = {
+                    critical: false,
+                    winner: typeWinner,
+                    skills: selected
+                }
+            }
+        } else {
+            if (initiative2 > initiative1) {
+                // Roll for crit
+                combatResult = {
+                    critical: false,
+                    winner: typeWinner,
+                    skills: selected
+                }
+            } else {
+                // Roll for hit
+                combatResult = {
+                    critical: false,
+                    winner: typeWinner,
+                    skills: selected
+                }
+            }
+        }
+    } else {
+        // Tie on type
+        let initiative1 = card1[1].initiative
+        let initiative2 = card2[1].initiative
+
+        if (initiative1 > initiative2) {
+            // Card1 wins
+            combatResult = {
+                critical: false,
+                winner: card1[0],
+                skills: selected
+            }
+        } else if (initiative1 < initiative2) {
+            // Card2 wins
+            combatResult = {
+                critical: false,
+                winner: card2[0],
+                skills: selected
+            }
+        } else {
+            // Tie
+            combatResult = {
+                critical: false,
+                winner: undefined,
+                skills: selected
+            }
+        }
+    }
+
+    console.log("COMBAT RESULT")
+    console.log(combatResult)
+
     // Do skill aftermath actions
 
     // Deal Damage
 
+    if (combatResult.winner) {
+    }
+
     return {
-        battleContext: battleContextHandler.context,
+        battleContext: battleContextHandler.finalize(),
         errors: []
     }
 }
@@ -236,7 +325,7 @@ const doRecoveryRound: (
     // Do recover RP
 
     return {
-        battleContext: battleContextHandler.context,
+        battleContext: battleContextHandler.finalize(),
         errors: []
     }
 }
@@ -313,17 +402,128 @@ const getBattleEffects: (
     return foundEffects
 }
 
+const typeBeats: (card1: IAttackType, card2: IAttackType) => boolean = (
+    card1,
+    card2
+) => {
+    switch (card1) {
+        case IAttackType.FURY: {
+            return card2 === IAttackType.VITALITY
+        }
+        case IAttackType.PRECISION: {
+            return card2 === IAttackType.FURY
+        }
+        case IAttackType.VITALITY: {
+            return card2 === IAttackType.PRECISION
+        }
+    }
+}
+
+const extendDamageEntry: (
+    damageEntry: Partial<IDamageEntry>
+) => IDamageEntry = damageEntry => {
+    return deepCopy(
+        evolve(damageEntry, {
+            DMG: { base: 0 },
+            EDMG: { base: 0, electric: 0, fire: 0, ice: 0 },
+            MDMG: {
+                base: 0
+            },
+            PDMG: {
+                base: 0
+            }
+        } as IDamageEntry)
+    )
+}
+
+const extendDefenseEntry: (
+    damageEntry: Partial<IDefenseEntry>
+) => IDefenseEntry = defenseEntry => {
+    return deepCopy(
+        evolve(defenseEntry, {
+            DEF: { base: 0 },
+            EDEF: { base: 0, electric: 0, fire: 0, ice: 0 },
+            MDEF: {
+                base: 0
+            }
+        } as IDefenseEntry)
+    )
+}
+
+const subtractDefense: (
+    damageEntry: IDamageEntry,
+    defenseEntry: IDefenseEntry
+) => IDamageEntry = (damageEntry, defenseEntry) => {
+    let workingDamageEntry = deepCopy(damageEntry)
+    damageEntry.DMG.base = Math.max(
+        0,
+        damageEntry.DMG.base - defenseEntry.DEF.base
+    )
+    damageEntry.MDMG.base = Math.max(
+        0,
+        damageEntry.MDMG.base - defenseEntry.MDEF.base
+    )
+    damageEntry.EDMG.base = Math.max(
+        0,
+        damageEntry.EDMG.base - defenseEntry.EDEF.base
+    )
+    damageEntry.EDMG.electric = Math.max(
+        0,
+        damageEntry.EDMG.electric - defenseEntry.EDEF.electric
+    )
+    damageEntry.EDMG.fire = Math.max(
+        0,
+        damageEntry.EDMG.fire - defenseEntry.EDEF.fire
+    )
+    damageEntry.EDMG.ice = Math.max(
+        0,
+        damageEntry.EDMG.ice - defenseEntry.EDEF.ice
+    )
+    return workingDamageEntry
+}
+
+const getTotalDamage: (
+    damageEntry: IDamageEntry,
+    defenseEntry: IDefenseEntry
+) => number = (damageEntry, defenseEntry) => {
+    let newDamageEntry = subtractDefense(damageEntry, defenseEntry)
+    return (
+        newDamageEntry.DMG.base +
+        newDamageEntry.EDMG.base +
+        newDamageEntry.MDMG.base +
+        newDamageEntry.PDMG.base +
+        newDamageEntry.EDMG.electric +
+        newDamageEntry.EDMG.fire +
+        newDamageEntry.EDMG.ice
+    )
+}
+
+const getParticipantDefense: (
+    context: IBattleContext,
+    id: string
+) => IDefenseEntry = (context, id) => {
+    const participant = context.participants[id]
+    return extendDefenseEntry({
+        DEF: participant.stats.DEF,
+        EDEF: {
+            base: participant.stats.EDEF.base,
+            electric: participant.stats.EDEF.electric || 0,
+            fire: participant.stats.EDEF.fire || 0,
+            ice: participant.stats.EDEF.ice || 0
+        },
+        MDEF: participant.stats.MDEF
+    })
+}
+
 class BattleContextHandler {
     public context: IBattleContext
-    private currentTurn: string
 
     constructor(context: IBattleContext) {
-        this.currentTurn = nextTurn(getBattleTurnKey(context) || undefined)
         this.context = deepCopy(
             evolve(
                 {
                     turns: {
-                        [this.currentTurn]: { actions: [] }
+                        [context.currentTurn]: { actions: [] }
                     }
                 },
                 context
@@ -331,11 +531,27 @@ class BattleContextHandler {
         )
     }
 
+    public finalize(): IBattleContext {
+        this.context.currentTurn = nextTurn(this.context.currentTurn)
+        return this.context
+    }
+
+    public damage(damageContext: IDamageContext): void {
+        const target = this.context.participants[damageContext.target]
+        // Calculate against DEF
+        const totalDamage = getTotalDamage(
+            damageContext.damage,
+            getParticipantDefense(this.context, damageContext.target)
+        )
+        // Add Action
+        // Change HP
+    }
+
     public addAction(action: IBattleAction): void {
         this.context = evolve(
             {
                 turns: {
-                    [this.currentTurn]: {
+                    [this.context.currentTurn]: {
                         actions: append(action)
                     }
                 }
@@ -421,11 +637,13 @@ export enum IAttackType {
 export interface IBattleContext {
     participants: Record<string, IBattleParticipant>
     turns: IPreTurn & ICombatTurn & IRecoveryTurn
+    currentTurn: string
 }
 
 export interface IBattleParticipant {
     stats: IBattleStats
     skills: string[]
+    queuedRPCost: number
     status_effects: IStatusEffect[]
     stationary_effects: IStationaryEffect[]
 }
@@ -526,4 +744,31 @@ export interface AbstractBattleAction<T extends string> {
 
 export interface DamageAction extends AbstractBattleAction<"damage"> {
     type: "damage"
+}
+
+export interface ICombatResult {
+    winner?: string
+    critical: boolean
+    skills: Record<string, string[]>
+}
+
+export interface IDamageContext {
+    damage: IDamageEntry
+    source: IBattleSource
+    target: string
+}
+
+export interface IDefenseEntry {
+    DEF: {
+        base: number
+    }
+    EDEF: {
+        base: number
+        fire: number
+        electric: number
+        ice: number
+    }
+    MDEF: {
+        base: number
+    }
 }

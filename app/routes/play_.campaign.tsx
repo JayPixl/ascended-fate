@@ -16,7 +16,7 @@ import {
 } from "~/utils/engine/lib/equipment"
 import { BIOMES } from "~/utils/engine/lib/generation"
 import { RACES } from "~/utils/engine/lib/races"
-import { SKILLS } from "~/utils/engine/lib/skills"
+import { SKILLS, getSkillEntry } from "~/utils/engine/lib/skills"
 import { WEAPONS, getWeaponNodes } from "~/utils/engine/lib/weapons"
 import { ClassName, RaceName } from "~/utils/engine/skill-tree"
 import { GameContext, GameContextHandler } from "~/utils/gamecontext"
@@ -233,32 +233,71 @@ export default function Campaign() {
                     </div>
                 </GameScreen>
                 <GameScreen id="path">
-                    <div className="flex flex-col items-center">
-                        <div className="">
-                            {gameContext.character.gameState.stats.AP} AP
+                    {gameContext.battleState ? (
+                        <div className="flex flex-col items-center">
+                            {JSON.stringify(gameContext.battleState)}
+                            <div className="py-2">
+                                {gameContext.battleState.context.currentTurn.split(
+                                    "-"
+                                )[0] === "combat" ? (
+                                    <>
+                                        <div className="">COMBAT ROUND</div>
+                                        {gameContext.battleState.context.participants[
+                                            "@" + activeCharacter.id
+                                        ].skills.map(skillId => {
+                                            const skillEntry =
+                                                getSkillEntry(skillId)
+                                            return (
+                                                <div
+                                                    className=""
+                                                    onClick={() =>
+                                                        contextHandler.doCombatAction(
+                                                            skillId
+                                                        )
+                                                    }
+                                                >
+                                                    {skillEntry.name}
+                                                </div>
+                                            )
+                                        })}
+                                    </>
+                                ) : gameContext.battleState.context.currentTurn.split(
+                                      "-"
+                                  )[0] === "recovery" ? (
+                                    <></>
+                                ) : (
+                                    <></>
+                                )}
+                            </div>
                         </div>
-                        <div className="font-bold">
-                            {
-                                BIOMES[
-                                    gameContext.character.gameState.currentTile
-                                        .biome
-                                ].title
-                            }
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <div className="">
+                                {gameContext.character.gameState.stats.AP} AP
+                            </div>
+                            <div className="font-bold">
+                                {
+                                    BIOMES[
+                                        gameContext.character.gameState
+                                            .currentTile.biome
+                                    ].title
+                                }
+                            </div>
+                            <div className="flex flex-col">
+                                {gameContext.character.gameState.currentTile.tileNodes.map(
+                                    (node, idx) => (
+                                        <ActionNode node={node} index={idx} />
+                                    )
+                                )}
+                            </div>
+                            <button onClick={() => contextHandler.travel()}>
+                                TRAVEL
+                            </button>
+                            <button onClick={() => contextHandler.rest()}>
+                                REST
+                            </button>
                         </div>
-                        <div className="flex flex-col">
-                            {gameContext.character.gameState.currentTile.tileNodes.map(
-                                (node, idx) => (
-                                    <ActionNode node={node} index={idx} />
-                                )
-                            )}
-                        </div>
-                        <button onClick={() => contextHandler.travel()}>
-                            TRAVEL
-                        </button>
-                        <button onClick={() => contextHandler.rest()}>
-                            REST
-                        </button>
-                    </div>
+                    )}
                 </GameScreen>
                 <GameScreen id="skills">
                     <div className="flex items-center justify-center w-full h-full">

@@ -4,7 +4,11 @@ import type { LoaderFunction, MetaFunction } from "@remix-run/node"
 import { Link, json, redirect, useLoaderData } from "@remix-run/react"
 import { evolve } from "evolve-ts"
 import { generate } from "randomstring"
-import { createEncounterBattleContext } from "~/utils/engine/battlecontext"
+import {
+    createEncounterBattleContext,
+    doRound,
+    getActiveBattleIndex
+} from "~/utils/engine/battlecontext"
 import {
     CharEquipmentMap,
     CharWeaponMap,
@@ -473,6 +477,7 @@ export const loader: LoaderFunction = async ({ request }) => {
                     gameState: evolve(
                         {
                             currentTile: {
+                                status: "battle",
                                 tileNodes: list =>
                                     list.map((n, idx) =>
                                         idx === nodeIndex
@@ -491,6 +496,49 @@ export const loader: LoaderFunction = async ({ request }) => {
             }
 
             return json({ character })
+        }
+        case "combat": {
+            const selection = searchParams.get("selection") as string
+            if (!selection.length) {
+                return json({ error: "Invalid selection!" })
+            }
+            const targetNode =
+                char.gameState.currentTile.tileNodes[getActiveBattleIndex(char)]
+            if (targetNode.type !== "encounter" || targetNode.usages === 0) {
+                return json({ error: "Invalid node!" })
+            }
+
+            const result = doRound(char, { selection })
+
+            return json({ error: result.error })
+
+            // const character = await prisma.character.update({
+            //     where: {
+            //         id: activeCharacter.id
+            //     },
+            //     data: {
+            //         gameState: evolve(
+            //             {
+            //                 currentTile: {
+            //                     status: "battle",
+            //                     tileNodes: list =>
+            //                         list.map((n, idx) =>
+            //                             idx === nodeIndex
+            //                                 ? { ...n, battleContext }
+            //                                 : n
+            //                         )
+            //                 }
+            //             },
+            //             char.gameState
+            //         ) as unknown as Prisma.InputJsonObject
+            //     }
+            // })
+
+            // if (!character) {
+            //     return json({ error: "Could not update character!" })
+            // }
+
+            // return json({ character })
         }
         default: {
             return json({ error: "Invalid action type!" })

@@ -1,8 +1,17 @@
 import { createContext } from "react"
-import { IGameContext, doCharUpgradeLookup } from "./engine/gamestate"
+import {
+    EncounterNode,
+    IGameContext,
+    doCharUpgradeLookup
+} from "./engine/gamestate"
 import axios, { AxiosResponse } from "axios"
 import { CorrectedCharacter } from "./types"
 import { evolve, unset } from "evolve-ts"
+import {
+    getActiveBattleIndex,
+    getBattleTurnKey,
+    nextTurn
+} from "./engine/battlecontext"
 
 export class GameContextHandler {
     private gameContext: IGameContext
@@ -14,7 +23,24 @@ export class GameContextHandler {
         gameContext: IGameContext,
         setGameContext: React.Dispatch<React.SetStateAction<IGameContext>>
     ) {
-        this.gameContext = { ...gameContext }
+        const activeBattleIndex = getActiveBattleIndex(gameContext.character)
+        const battleContext =
+            activeBattleIndex === -1
+                ? undefined
+                : (
+                      gameContext.character.gameState.currentTile.tileNodes[
+                          activeBattleIndex
+                      ] as EncounterNode
+                  ).battleContext || undefined
+
+        this.gameContext = {
+            ...gameContext,
+            battleState: battleContext
+                ? {
+                      context: battleContext
+                  }
+                : undefined
+        }
         this.setGameContextDispatcher = setGameContext
     }
 
@@ -44,11 +70,36 @@ export class GameContextHandler {
                 res.data?.character
                     ? this.setGameContext({
                           ...this.gameContext,
-                          character: res.data.character
+                          character: res.data.character,
+                          battleState: {
+                              context: (
+                                  res.data.character.gameState.currentTile
+                                      .tileNodes[nodeIndex] as EncounterNode
+                              ).battleContext!
+                          }
                       })
                     : console.log(res.data?.error)
             }
         )
+    }
+
+    public doCombatAction(selection: string) {
+        this.doAction<CombatAction>({ type: "combat", selection }, res => {
+            res.data?.character
+                ? this.setGameContext({
+                      ...this.gameContext,
+                      character: res.data.character,
+                      battleState: {
+                          context: (
+                              res.data.character.gameState.currentTile
+                                  .tileNodes[
+                                  getActiveBattleIndex(res.data.character)
+                              ] as EncounterNode
+                          ).battleContext!
+                      }
+                  })
+                : console.log(res.data?.error)
+        })
     }
 
     public travel() {
@@ -148,6 +199,7 @@ export type ActionType =
     | RestAction
     | UpgradeNodeAction
     | EncounterAction
+    | CombatAction
 
 export interface AbstractAction<T extends string> {
     type: T
@@ -168,6 +220,16 @@ export interface ResourceAction extends AbstractAction<"resource"> {
 export interface EncounterAction extends AbstractAction<"encounter"> {
     params: {
         index: number
+    }
+    response: {
+        error?: string
+        character?: CorrectedCharacter
+    }
+}
+
+export interface CombatAction extends AbstractAction<"combat"> {
+    params: {
+        selection: string
     }
     response: {
         error?: string

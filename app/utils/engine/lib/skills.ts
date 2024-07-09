@@ -21,7 +21,8 @@ export const SKILLS = {
                     }
                 },
                 RPCost: 1,
-                type: "VIT"
+                type: "VIT",
+                initiative: 3
             },
             "1": {
                 entry: false,
@@ -38,7 +39,8 @@ export const SKILLS = {
                     }
                 },
                 RPCost: 1,
-                type: "VIT"
+                type: "VIT",
+                initiative: 4
             }
         }
     },
@@ -60,7 +62,8 @@ export const SKILLS = {
                     }
                 },
                 RPCost: 1,
-                type: "PRC"
+                type: "PRC",
+                initiative: 5
             }
         }
     },
@@ -85,7 +88,77 @@ export const SKILLS = {
                     }
                 },
                 RPCost: 1,
-                type: "FRY"
+                type: "FRY",
+                initiative: 4
+            }
+        }
+    },
+    "slime:engulf": {
+        name: "Engulf",
+        levels: {
+            "0": {
+                entry: true,
+                beginUnlocked: true,
+                description: "3 DMG",
+                cost: { resources: [], xp: 0 },
+                children: [],
+                baseDMG: {
+                    DMG: {
+                        base: 1
+                    },
+                    PDMG: {
+                        base: 1
+                    }
+                },
+                RPCost: 1,
+                type: "VIT",
+                initiative: 7
+            }
+        }
+    },
+    "slime:bash": {
+        name: "Bash",
+        levels: {
+            "0": {
+                entry: true,
+                beginUnlocked: true,
+                description: "3 DMG",
+                cost: { resources: [], xp: 0 },
+                children: [],
+                baseDMG: {
+                    DMG: {
+                        base: 1
+                    },
+                    PDMG: {
+                        base: 1
+                    }
+                },
+                RPCost: 1,
+                type: "FRY",
+                initiative: 4
+            }
+        }
+    },
+    "slime:pound": {
+        name: "Pound",
+        levels: {
+            "0": {
+                entry: true,
+                beginUnlocked: true,
+                description: "3 DMG",
+                cost: { resources: [], xp: 0 },
+                children: [],
+                baseDMG: {
+                    DMG: {
+                        base: 1
+                    },
+                    PDMG: {
+                        base: 1
+                    }
+                },
+                RPCost: 1,
+                type: "PRC",
+                initiative: 5
             }
         }
     }
@@ -100,6 +173,7 @@ export interface IBattleSkillEntry {
     type: IAttackType
     RPCost: number
     baseDMG: Partial<IDamageEntry>
+    initiative: number
 }
 
 export const getSkillEntry: (entry: string) => IBattleSkillEntry = entry => {
@@ -113,6 +187,7 @@ export const getSkillEntry: (entry: string) => IBattleSkillEntry = entry => {
         name: skillEntry.name,
         baseDMG: levelEntry.baseDMG,
         RPCost: levelEntry.RPCost,
-        type: levelEntry.type as IAttackType
+        type: levelEntry.type as IAttackType,
+        initiative: levelEntry.initiative
     }
 }
