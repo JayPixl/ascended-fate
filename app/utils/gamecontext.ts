@@ -10,6 +10,7 @@ import { evolve, unset } from "evolve-ts"
 import {
     getActiveBattleIndex,
     getBattleTurnKey,
+    getDeadParticipants,
     nextTurn
 } from "./engine/battlecontext"
 
@@ -85,19 +86,42 @@ export class GameContextHandler {
 
     public doCombatAction(selection: string) {
         this.doAction<CombatAction>({ type: "combat", selection }, res => {
+            if (res.data?.character) {
+                const battleContext = (
+                    res.data.character.gameState.currentTile.tileNodes[
+                        getActiveBattleIndex(res.data.character)
+                    ] as EncounterNode
+                ).battleContext!
+
+                this.setGameContext({
+                    ...this.gameContext,
+                    character: res.data.character,
+                    battleState: {
+                        context: battleContext
+                    }
+                })
+
+                if (getDeadParticipants(battleContext).length) {
+                    setTimeout(() => this.refreshGamestate(), 5000)
+                }
+            } else {
+                console.log(res.data?.error)
+            }
+        })
+    }
+
+    public refreshGamestate(): void {
+        this.doAction<RefreshAction>({ type: "refresh" }, res => {
             res.data?.character
-                ? this.setGameContext({
-                      ...this.gameContext,
-                      character: res.data.character,
-                      battleState: {
-                          context: (
-                              res.data.character.gameState.currentTile
-                                  .tileNodes[
-                                  getActiveBattleIndex(res.data.character)
-                              ] as EncounterNode
-                          ).battleContext!
-                      }
-                  })
+                ? this.setGameContext(
+                      evolve(
+                          {
+                              character: res.data.character,
+                              battleState: undefined
+                          },
+                          this.gameContext
+                      )
+                  )
                 : console.log(res.data?.error)
         })
     }
@@ -200,6 +224,7 @@ export type ActionType =
     | UpgradeNodeAction
     | EncounterAction
     | CombatAction
+    | RefreshAction
 
 export interface AbstractAction<T extends string> {
     type: T
@@ -211,6 +236,13 @@ export interface ResourceAction extends AbstractAction<"resource"> {
     params: {
         index: number
     }
+    response: {
+        error?: string
+        character?: CorrectedCharacter
+    }
+}
+
+export interface RefreshAction extends AbstractAction<"refresh"> {
     response: {
         error?: string
         character?: CorrectedCharacter

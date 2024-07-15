@@ -9,6 +9,7 @@ import RenderedItemStack from "~/components/RenderedItemStack"
 import SkillTree from "~/components/SkillTree"
 import { IGameContext } from "~/utils/engine/gamestate"
 import { CLASSES } from "~/utils/engine/lib/classes"
+import { ENEMIES, EnemyName } from "~/utils/engine/lib/enemies"
 import {
     EQUIPMENT,
     getEquipmentById,
@@ -235,8 +236,38 @@ export default function Campaign() {
                 <GameScreen id="path">
                     {gameContext.battleState ? (
                         <div className="flex flex-col items-center">
-                            {JSON.stringify(gameContext.battleState)}
-                            <div className="py-2">
+                            {/* {JSON.stringify(gameContext.battleState)} */}
+                            {Object.entries(
+                                gameContext.battleState &&
+                                    gameContext.battleState.context.participants
+                            ).map(([participantId, participantEntry]) => (
+                                <div
+                                    className={`w-full flex-col flex ${
+                                        participantId ===
+                                        "@" + activeCharacter.id
+                                            ? "items-start order-2"
+                                            : "items-end order-1"
+                                    }`}
+                                >
+                                    <div className="font-bold text-xl">
+                                        {participantId ===
+                                        "@" + activeCharacter.id
+                                            ? activeCharacter.name
+                                            : ENEMIES[
+                                                  participantId as EnemyName
+                                              ].name}
+                                    </div>
+                                    <div className="">
+                                        HP: {participantEntry.stats.HP.current}/
+                                        {participantEntry.stats.HP.max}
+                                    </div>
+                                    <div className="">
+                                        RP: {participantEntry.stats.RP.current}/
+                                        {participantEntry.stats.RP.max}
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="py-2 order-3">
                                 {gameContext.battleState.context.currentTurn.split(
                                     "-"
                                 )[0] === "combat" ? (
@@ -264,9 +295,33 @@ export default function Campaign() {
                                 ) : gameContext.battleState.context.currentTurn.split(
                                       "-"
                                   )[0] === "recovery" ? (
-                                    <></>
+                                    <>
+                                        <div className="">RECOVERY ROUND</div>
+                                        <div
+                                            className=""
+                                            onClick={() =>
+                                                contextHandler.doCombatAction(
+                                                    "recover"
+                                                )
+                                            }
+                                        >
+                                            Recover
+                                        </div>
+                                    </>
                                 ) : (
-                                    <></>
+                                    <>
+                                        <div className="">PRE ROUND</div>
+                                        <div
+                                            className=""
+                                            onClick={() =>
+                                                contextHandler.doCombatAction(
+                                                    ""
+                                                )
+                                            }
+                                        >
+                                            Force Load
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         </div>

@@ -171,11 +171,23 @@ export const doRound: (
         }
         const result = doRecoveryRound(battleContext, selection)
         if (result.errors.length) console.log(result.errors)
-        return {
-            character: fixBattleCharacter(
-                char,
-                result.battleContext,
-                activeBattleIndex
+
+        if (getDeadParticipants(result.battleContext).length) {
+            return {
+                character: fixBattleCharacter(
+                    char,
+                    result.battleContext,
+                    activeBattleIndex
+                )
+            }
+        } else {
+            return doRound(
+                fixBattleCharacter(
+                    char,
+                    result.battleContext,
+                    activeBattleIndex
+                ),
+                {}
             )
         }
     } else {
@@ -305,6 +317,24 @@ const doBattleRound: (
     // Deal Damage
 
     if (combatResult.winner) {
+        const winningCard =
+            combatResult.winner === card1[0] ? card1[1] : card2[1]
+        const loserId = combatResult.winner === card1[0] ? card2[0] : card1[0]
+        battleContextHandler.damage({
+            damage: extendDamageEntry(winningCard.baseDMG),
+            source: {
+                type: "skill",
+                id: winningCard.id,
+                user: combatResult.winner
+            },
+            target: loserId
+        })
+
+        // Queue RP Cost
+        battleContextHandler.queueRPCost(
+            combatResult.winner,
+            winningCard.RPCost
+        )
     }
 
     return {
@@ -323,6 +353,16 @@ const doRecoveryRound: (
     const battleContextHandler = new BattleContextHandler(battleContext)
 
     // Do recover RP
+    Object.entries(selected).map(([userId, sel]) => {
+        if (sel[0] === "recover") {
+            battleContextHandler.modifyRP(userId, 1)
+        }
+    })
+
+    // Do apply RP Cost
+    battleContextHandler.applyRPCosts()
+
+    // Do win/lose check
 
     return {
         battleContext: battleContextHandler.finalize(),
@@ -517,6 +557,7 @@ const getParticipantDefense: (
 
 class BattleContextHandler {
     public context: IBattleContext
+    private locked: boolean = false
 
     constructor(context: IBattleContext) {
         this.context = deepCopy(
@@ -532,19 +573,109 @@ class BattleContextHandler {
     }
 
     public finalize(): IBattleContext {
+        getDeadParticipants(this.context).map(userId =>
+            this.addAction({ type: "death", target: userId })
+        )
         this.context.currentTurn = nextTurn(this.context.currentTurn)
         return this.context
     }
 
+    public heal(): void {
+        // If HP 0 don't heal unless "reviviable" true
+    }
+
     public damage(damageContext: IDamageContext): void {
         const target = this.context.participants[damageContext.target]
+
         // Calculate against DEF
+        console.log(JSON.stringify(damageContext))
         const totalDamage = getTotalDamage(
             damageContext.damage,
             getParticipantDefense(this.context, damageContext.target)
         )
+
         // Add Action
+        this.addAction({
+            type: "damage",
+            amount: totalDamage,
+            target: damageContext.target
+        })
+
         // Change HP
+        this.context = evolve(
+            {
+                participants: {
+                    [damageContext.target]: {
+                        stats: {
+                            HP: {
+                                current: cur => Math.max(0, cur - totalDamage)
+                            }
+                        }
+                    }
+                }
+            },
+            this.context
+        )
+
+        // If HP 0 try to revive (Random Phoenix Feather)
+    }
+
+    public queueRPCost(target: string, amount: number): void {
+        this.context = evolve(
+            {
+                participants: {
+                    [target]: {
+                        queuedRPCost: amount
+                    }
+                }
+            },
+            this.context
+        )
+    }
+
+    public modifyRP(
+        target: string,
+        amount: number,
+        clearRPCost: boolean = false
+    ) {
+        const modifiedAmount =
+            clamp(
+                this.context.participants[target].stats.RP.current + amount,
+                -this.context.participants[target].stats.RP.max,
+                this.context.participants[target].stats.RP.max
+            ) - this.context.participants[target].stats.RP.current
+
+        // Add Action
+        this.addAction({
+            type: "modify_rp",
+            amount: modifiedAmount,
+            target
+        })
+
+        // Change HP
+        this.context = evolve(
+            {
+                participants: {
+                    [target]: {
+                        queuedRPCost: cost => (clearRPCost ? 0 : cost),
+                        stats: {
+                            RP: {
+                                current: cur => cur + modifiedAmount
+                            }
+                        }
+                    }
+                }
+            },
+            this.context
+        )
+    }
+
+    public applyRPCosts(): void {
+        Object.entries(this.context.participants).map(
+            ([userId, participantEntry]) => {
+                this.modifyRP(userId, participantEntry.queuedRPCost, true)
+            }
+        )
     }
 
     public addAction(action: IBattleAction): void {
@@ -559,6 +690,20 @@ class BattleContextHandler {
             this.context
         )
     }
+}
+
+function clamp(num: number, min: number, max: number) {
+    return Math.max(Math.min(num, Math.max(min, max)), Math.min(min, max))
+}
+
+export const getDeadParticipants: (
+    context: IBattleContext
+) => string[] = context => {
+    let returnList: string[] = []
+    Object.entries(context.participants).map(([userId, userEntry]) => {
+        if (userEntry.stats.HP.current <= 0) returnList.push(userId)
+    })
+    return returnList
 }
 
 export const getBattleTurnKey: (
@@ -603,7 +748,7 @@ export const getBattleTurnKey: (
 
 export const nextTurn: (prevTurn?: string) => string = prevTurn => {
     return prevTurn?.indexOf("recovery") !== -1
-        ? "pre-" + prevTurn?.split("-")[1]
+        ? "pre-" + (Number(prevTurn?.split("-")[1]) + 1).toString()
         : prevTurn?.indexOf("pre") !== -1
         ? "combat-" + prevTurn?.split("-")[1]
         : prevTurn?.indexOf("combat") !== -1
@@ -736,7 +881,7 @@ export interface IDamageEntry {
     }
 }
 
-export type IBattleAction = DamageAction
+export type IBattleAction = DamageAction | ModifyRPAction | DeathAction
 
 export interface AbstractBattleAction<T extends string> {
     type: T
@@ -744,6 +889,19 @@ export interface AbstractBattleAction<T extends string> {
 
 export interface DamageAction extends AbstractBattleAction<"damage"> {
     type: "damage"
+    amount: number
+    target: string
+}
+
+export interface ModifyRPAction extends AbstractBattleAction<"modify_rp"> {
+    type: "modify_rp"
+    amount: number
+    target: string
+}
+
+export interface DeathAction extends AbstractBattleAction<"death"> {
+    type: "death"
+    target: string
 }
 
 export interface ICombatResult {

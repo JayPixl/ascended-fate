@@ -110,6 +110,7 @@ export interface ResourceNode extends AbstractTileNode<"resource"> {
 export interface EncounterNode extends AbstractTileNode<"encounter"> {
     enemy: EnemyName
     battleContext: IBattleContext | null
+    status: "undefeated" | "defeated" | "looted"
 }
 
 export interface DungeonNode extends AbstractTileNode<"dungeon"> {}

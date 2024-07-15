@@ -2,12 +2,13 @@ import { Character, Prisma, User } from "@prisma/client"
 import { JsonValue } from "@prisma/client/runtime/library"
 import type { LoaderFunction, MetaFunction } from "@remix-run/node"
 import { Link, json, redirect, useLoaderData } from "@remix-run/react"
-import { evolve } from "evolve-ts"
+import { evolve, unset } from "evolve-ts"
 import { generate } from "randomstring"
 import {
     createEncounterBattleContext,
     doRound,
-    getActiveBattleIndex
+    getActiveBattleIndex,
+    getDeadParticipants
 } from "~/utils/engine/battlecontext"
 import {
     CharEquipmentMap,
@@ -56,6 +57,8 @@ export const loader: LoaderFunction = async ({ request }) => {
     const action = (searchParams.get("type") as string) || ""
 
     console.log("RECEIVED ACTION " + action)
+
+    if (char.status !== "ACTIVE") return redirect("/play")
 
     switch (action) {
         case "reset-character": {
@@ -464,18 +467,13 @@ export const loader: LoaderFunction = async ({ request }) => {
                 return json({ error: "Not enough AP!" })
             }
 
-            const battleContext = createEncounterBattleContext(char, targetNode)
-            console.log(battleContext)
+            let battleContext = createEncounterBattleContext(char, targetNode)
+            //console.log(battleContext)
 
-            //return json({ error: battleContext })
-
-            const character = await prisma.character.update({
-                where: {
-                    id: activeCharacter.id
-                },
-                data: {
-                    gameState: evolve(
-                        {
+            const result = doRound(
+                evolve(
+                    {
+                        gameState: {
                             currentTile: {
                                 status: "battle",
                                 tileNodes: list =>
@@ -485,9 +483,26 @@ export const loader: LoaderFunction = async ({ request }) => {
                                             : n
                                     )
                             }
-                        },
-                        char.gameState
-                    ) as unknown as Prisma.InputJsonObject
+                        }
+                    },
+                    char
+                ),
+                {}
+            )
+
+            if (!result.character) return json({ error: result.error })
+
+            //return json({ error: battleContext })
+
+            const character = await prisma.character.update({
+                where: {
+                    id: activeCharacter.id
+                },
+                data: {
+                    gameState: result.character
+                        .gameState as unknown as Prisma.InputJsonObject,
+                    stats: result.character
+                        .stats as unknown as Prisma.InputJsonObject
                 }
             })
 
@@ -510,35 +525,85 @@ export const loader: LoaderFunction = async ({ request }) => {
 
             const result = doRound(char, { selection })
 
-            return json({ error: result.error })
+            if (!result.character) {
+                return json({ error: result.error })
+            }
 
-            // const character = await prisma.character.update({
-            //     where: {
-            //         id: activeCharacter.id
-            //     },
-            //     data: {
-            //         gameState: evolve(
-            //             {
-            //                 currentTile: {
-            //                     status: "battle",
-            //                     tileNodes: list =>
-            //                         list.map((n, idx) =>
-            //                             idx === nodeIndex
-            //                                 ? { ...n, battleContext }
-            //                                 : n
-            //                         )
-            //                 }
-            //             },
-            //             char.gameState
-            //         ) as unknown as Prisma.InputJsonObject
-            //     }
-            // })
+            const battleContext = (
+                result.character.gameState.currentTile.tileNodes[
+                    getActiveBattleIndex(char)
+                ] as EncounterNode
+            ).battleContext
+            const dead = battleContext ? getDeadParticipants(battleContext) : []
 
-            // if (!character) {
-            //     return json({ error: "Could not update character!" })
-            // }
+            if (dead.length) {
+                if (dead.filter(userId => userId === "@" + char.id).length) {
+                    // Character is dead
+                    const deadCharacter = killCharacter(result.character)
+
+                    await prisma.character.update({
+                        where: {
+                            id: char.id
+                        },
+                        data: {
+                            status: deadCharacter.status,
+                            gameState:
+                                deadCharacter.gameState as unknown as Prisma.InputJsonObject
+                        }
+                    })
+                } else {
+                    // Enemy is dead
+                    const activeBattleIndex = getActiveBattleIndex(char)
+                    await prisma.character.update({
+                        where: {
+                            id: char.id
+                        },
+                        data: {
+                            gameState: evolve(
+                                {
+                                    currentTile: {
+                                        tileNodes: tiles =>
+                                            tiles.map((tile, idx) =>
+                                                idx === activeBattleIndex
+                                                    ? ({
+                                                          ...tile,
+                                                          battleContext: null,
+                                                          status: "defeated"
+                                                      } as EncounterNode)
+                                                    : tile
+                                            )
+                                    }
+                                },
+                                result.character.gameState
+                            ) as unknown as Prisma.InputJsonObject
+                        }
+                    })
+                }
+
+                return json({ character: result.character })
+            }
+
+            const character = await prisma.character.update({
+                where: {
+                    id: char.id
+                },
+                data: {
+                    gameState: result.character
+                        .gameState as unknown as Prisma.InputJsonObject,
+                    stats: result.character
+                        .stats as unknown as Prisma.InputJsonObject
+                }
+            })
+
+            if (!character) {
+                return json({ error: "Could not update character!" })
+            }
 
             // return json({ character })
+            return json({ error: result.error, character: result.character })
+        }
+        case "refresh": {
+            return json({ character: char })
         }
         default: {
             return json({ error: "Invalid action type!" })
@@ -695,4 +760,14 @@ export function updateJsonValue<T extends Object>(
 
 export function deepCopy<T>(obj: T): T {
     return JSON.parse(JSON.stringify(obj))
+}
+
+export const killCharacter: (
+    char: CorrectedCharacter
+) => CorrectedCharacter = char => {
+    return {
+        ...char,
+        status: "DEAD",
+        gameState: {} as GameState
+    }
 }

@@ -213,7 +213,8 @@ export const TILE_NODES = {
                 title: ENEMIES[enemyId].name,
                 battleContext: null,
                 usages: 1,
-                enemy: enemyId
+                enemy: enemyId,
+                status: "undefeated"
             }
         }
     }

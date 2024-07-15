@@ -20,7 +20,7 @@ export const SKILLS = {
                         base: 1
                     }
                 },
-                RPCost: 1,
+                RPCost: 2,
                 type: "VIT",
                 initiative: 3
             },
@@ -38,7 +38,7 @@ export const SKILLS = {
                         base: 2
                     }
                 },
-                RPCost: 1,
+                RPCost: 2,
                 type: "VIT",
                 initiative: 4
             }
@@ -133,7 +133,7 @@ export const SKILLS = {
                         base: 1
                     }
                 },
-                RPCost: 1,
+                RPCost: 3,
                 type: "FRY",
                 initiative: 4
             }
@@ -156,7 +156,7 @@ export const SKILLS = {
                         base: 1
                     }
                 },
-                RPCost: 1,
+                RPCost: 2,
                 type: "PRC",
                 initiative: 5
             }
