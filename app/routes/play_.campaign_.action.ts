@@ -519,6 +519,8 @@ export const loader: LoaderFunction = async ({ request }) => {
             }
             const targetNode =
                 char.gameState.currentTile.tileNodes[getActiveBattleIndex(char)]
+
+            if (!targetNode) return json("Invalid node!")
             if (targetNode.type !== "encounter" || targetNode.usages === 0) {
                 return json({ error: "Invalid node!" })
             }
@@ -554,6 +556,7 @@ export const loader: LoaderFunction = async ({ request }) => {
                 } else {
                     // Enemy is dead
                     const activeBattleIndex = getActiveBattleIndex(char)
+                    // Enemy Loot
                     await prisma.character.update({
                         where: {
                             id: char.id
@@ -568,7 +571,7 @@ export const loader: LoaderFunction = async ({ request }) => {
                                                     ? ({
                                                           ...tile,
                                                           battleContext: null,
-                                                          status: "defeated"
+                                                          usages: 0
                                                       } as EncounterNode)
                                                     : tile
                                             )
@@ -599,10 +602,10 @@ export const loader: LoaderFunction = async ({ request }) => {
                 return json({ error: "Could not update character!" })
             }
 
-            // return json({ character })
             return json({ error: result.error, character: result.character })
         }
         case "refresh": {
+            console.log("REFRESHING")
             return json({ character: char })
         }
         default: {

@@ -1,4 +1,4 @@
-import { deepCopy } from "~/routes/play_.campaign_.action"
+import { ActionResult, deepCopy } from "~/routes/play_.campaign_.action"
 import { CorrectedCharacter } from "../types"
 import { EncounterNode } from "./gamestate"
 import { STATUS_EFFECTS } from "./lib/battle-effects"
@@ -250,32 +250,68 @@ const doBattleRound: (
         if (typeWinner === card1[0]) {
             if (initiative1 > initiative2) {
                 // Roll for crit
+
                 combatResult = {
-                    critical: false,
+                    critical:
+                        rollBounded(
+                            initiative1 - initiative2,
+                            20 -
+                                battleContextHandler.context.participants[
+                                    card1[0]
+                                ].stats.luck
+                        ) === ActionResult.SUCCESS,
                     winner: typeWinner,
                     skills: selected
                 }
             } else {
-                // Roll for hit
+                // Roll for dodge
+
                 combatResult = {
                     critical: false,
-                    winner: typeWinner,
+                    winner:
+                        rollBounded(
+                            initiative2 - initiative1,
+                            20 -
+                                battleContextHandler.context.participants[
+                                    card2[0]
+                                ].stats.dexterity
+                        ) === ActionResult.SUCCESS
+                            ? undefined
+                            : typeWinner,
                     skills: selected
                 }
             }
         } else {
             if (initiative2 > initiative1) {
                 // Roll for crit
+
                 combatResult = {
-                    critical: false,
+                    critical:
+                        rollBounded(
+                            initiative2 - initiative1,
+                            20 -
+                                battleContextHandler.context.participants[
+                                    card2[0]
+                                ].stats.luck
+                        ) === ActionResult.SUCCESS,
                     winner: typeWinner,
                     skills: selected
                 }
             } else {
-                // Roll for hit
+                // Roll for dodge
+
                 combatResult = {
                     critical: false,
-                    winner: typeWinner,
+                    winner:
+                        rollBounded(
+                            initiative1 - initiative2,
+                            20 -
+                                battleContextHandler.context.participants[
+                                    card1[0]
+                                ].stats.dexterity
+                        ) === ActionResult.SUCCESS
+                            ? undefined
+                            : typeWinner,
                     skills: selected
                 }
             }
@@ -286,24 +322,35 @@ const doBattleRound: (
         let initiative2 = card2[1].initiative
 
         if (initiative1 > initiative2) {
-            // Card1 wins
+            // Roll for hit
+
             combatResult = {
                 critical: false,
-                winner: card1[0],
+                winner:
+                    rollBounded(
+                        initiative1 - initiative2,
+                        12 -
+                            battleContextHandler.context.participants[card1[0]]
+                                .stats.moxie
+                    ) === ActionResult.SUCCESS
+                        ? undefined
+                        : card1[0],
                 skills: selected
             }
-        } else if (initiative1 < initiative2) {
-            // Card2 wins
+        } else if (initiative2 > initiative1) {
+            // Roll for hit
+
             combatResult = {
                 critical: false,
-                winner: card2[0],
-                skills: selected
-            }
-        } else {
-            // Tie
-            combatResult = {
-                critical: false,
-                winner: undefined,
+                winner:
+                    rollBounded(
+                        initiative2 - initiative1,
+                        12 -
+                            battleContextHandler.context.participants[card2[0]]
+                                .stats.moxie
+                    ) === ActionResult.SUCCESS
+                        ? undefined
+                        : card2[0],
                 skills: selected
             }
         }
@@ -321,7 +368,16 @@ const doBattleRound: (
             combatResult.winner === card1[0] ? card1[1] : card2[1]
         const loserId = combatResult.winner === card1[0] ? card2[0] : card1[0]
         battleContextHandler.damage({
-            damage: extendDamageEntry(winningCard.baseDMG),
+            damage: combatResult.critical
+                ? extendDamageEntry({
+                      PDMG: {
+                          base: getTotalDamage(
+                              extendDamageEntry(winningCard.baseDMG),
+                              extendDefenseEntry({})
+                          )
+                      }
+                  })
+                : extendDamageEntry(winningCard.baseDMG),
             source: {
                 type: "skill",
                 id: winningCard.id,
@@ -457,6 +513,14 @@ const typeBeats: (card1: IAttackType, card2: IAttackType) => boolean = (
             return card2 === IAttackType.PRECISION
         }
     }
+}
+
+const rollBounded: (value: number, upperBound: number) => ActionResult = (
+    val,
+    bound
+) => {
+    const n: number = getRandomInt(1, bound)
+    return n <= val ? ActionResult.SUCCESS : ActionResult.FAIL
 }
 
 const extendDamageEntry: (

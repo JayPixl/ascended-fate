@@ -1,5 +1,5 @@
 import type { LoaderFunction, MetaFunction } from "@remix-run/node"
-import { redirect, useLoaderData } from "@remix-run/react"
+import { redirect, useLoaderData, useNavigate } from "@remix-run/react"
 import { useState } from "react"
 import ActionNode from "~/components/ActionNode"
 import GameModal from "~/components/GameModal"
@@ -51,6 +51,8 @@ export default function Campaign() {
         activeCharacter: CorrectedCharacter
     }
 
+    const navigate = useNavigate()
+
     const [gameContext, setGameContext] = useState<IGameContext>({
         user,
         character: activeCharacter,
@@ -60,7 +62,7 @@ export default function Campaign() {
     })
 
     const [contextHandler] = useState(
-        new GameContextHandler(gameContext, setGameContext)
+        new GameContextHandler(gameContext, setGameContext, navigate)
     )
 
     return (

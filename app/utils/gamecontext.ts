@@ -9,20 +9,21 @@ import { CorrectedCharacter } from "./types"
 import { evolve, unset } from "evolve-ts"
 import {
     getActiveBattleIndex,
-    getBattleTurnKey,
-    getDeadParticipants,
-    nextTurn
+    getDeadParticipants
 } from "./engine/battlecontext"
+import { NavigateFunction, useNavigate } from "@remix-run/react"
 
 export class GameContextHandler {
     private gameContext: IGameContext
     private setGameContextDispatcher: React.Dispatch<
         React.SetStateAction<IGameContext>
     >
+    private navigate: NavigateFunction
 
     constructor(
         gameContext: IGameContext,
-        setGameContext: React.Dispatch<React.SetStateAction<IGameContext>>
+        setGameContext: React.Dispatch<React.SetStateAction<IGameContext>>,
+        navigate: NavigateFunction
     ) {
         const activeBattleIndex = getActiveBattleIndex(gameContext.character)
         const battleContext =
@@ -43,6 +44,7 @@ export class GameContextHandler {
                 : undefined
         }
         this.setGameContextDispatcher = setGameContext
+        this.navigate = navigate
     }
 
     private setGameContext(ctx: IGameContext) {
@@ -112,17 +114,22 @@ export class GameContextHandler {
 
     public refreshGamestate(): void {
         this.doAction<RefreshAction>({ type: "refresh" }, res => {
-            res.data?.character
-                ? this.setGameContext(
-                      evolve(
-                          {
-                              character: res.data.character,
-                              battleState: undefined
-                          },
-                          this.gameContext
-                      )
-                  )
-                : console.log(res.data?.error)
+            if (res.data?.character) {
+                if (res.data.character.status !== "ACTIVE") {
+                    this.navigate("/play")
+                }
+                this.setGameContext(
+                    evolve(
+                        {
+                            character: res.data.character,
+                            battleState: undefined
+                        },
+                        this.gameContext
+                    )
+                )
+            } else {
+                this.navigate("/play")
+            }
         })
     }
 
