@@ -1,4 +1,8 @@
-import { ActionResult, deepCopy } from "~/routes/play_.campaign_.action"
+import {
+    ActionResult,
+    deepCopy,
+    removeItemStacks
+} from "~/routes/play_.campaign_.action"
 import { CorrectedCharacter } from "../types"
 import { EncounterNode } from "./gamestate"
 import { STATUS_EFFECTS } from "./lib/battle-effects"
@@ -8,6 +12,7 @@ import { evolve } from "evolve-ts"
 import { append } from "ramda"
 import { getRandomInt } from "../name-generator"
 import { IBattleSkillEntry, getSkillEntry } from "./lib/skills"
+import { ItemStack } from "./lib/generation"
 
 export const getCurrentSkills: (
     char: CorrectedCharacter
@@ -31,6 +36,7 @@ export const createEncounterBattleContext: (
             ["@" + char.id]: {
                 skills: getCurrentSkills(char).map(skill => skill.id),
                 queuedRPCost: 0,
+                items: char.gameState.inventory,
                 stats: {
                     HP: {
                         current: char.gameState.stats.HP.current,
@@ -84,6 +90,7 @@ export const createEncounterBattleContext: (
                     luck: ENEMIES[node.enemy].luck,
                     moxie: ENEMIES[node.enemy].moxie
                 },
+                items: [],
                 queuedRPCost: 0,
                 skills: ENEMIES[node.enemy].skills,
                 stationary_effects: [],
@@ -619,9 +626,8 @@ const getParticipantDefense: (
     })
 }
 
-class BattleContextHandler {
+export class BattleContextHandler {
     public context: IBattleContext
-    private locked: boolean = false
 
     constructor(context: IBattleContext) {
         this.context = deepCopy(
@@ -682,6 +688,44 @@ class BattleContextHandler {
         )
 
         // If HP 0 try to revive (Random Phoenix Feather)
+        if (
+            this.context.participants[damageContext.target].items.map(
+                i => i.id === "phoenix_feather"
+            ).length
+        ) {
+            if (
+                this.consumeItem(damageContext.target, {
+                    id: "phoenix_feather",
+                    amount: 1,
+                    components: {}
+                }) === ActionResult.SUCCESS
+            ) {
+                // Add Revive Action
+                // Add HP
+            }
+        }
+    }
+
+    public consumeItem(userId: string, item: ItemStack): ActionResult {
+        const removeResult = removeItemStacks(
+            [item],
+            this.context.participants[userId].items
+        )
+
+        if (removeResult.result === ActionResult.FAIL) return ActionResult.FAIL
+
+        this.context = evolve(
+            {
+                participants: {
+                    [userId]: {
+                        items: removeResult.inventory
+                    }
+                }
+            },
+            this.context
+        )
+
+        return ActionResult.SUCCESS
     }
 
     public queueRPCost(target: string, amount: number): void {
@@ -855,6 +899,7 @@ export interface IBattleParticipant {
     queuedRPCost: number
     status_effects: IStatusEffect[]
     stationary_effects: IStationaryEffect[]
+    items: ItemStack[]
 }
 
 export interface ExtendedUnifiedEffect extends IStatusEffect {
@@ -993,4 +1038,8 @@ export interface IDefenseEntry {
     MDEF: {
         base: number
     }
+}
+
+export interface IUsageContext {
+    user: string
 }
